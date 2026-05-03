@@ -47,6 +47,7 @@ export default function Pengaturan() {
   const [storageUsage, setStorageUsage] = useState<{ usage: number; quota: number } | null>(null);
   const [updateInfo, setUpdateInfo] = useState<AppUpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [supportQrisDialog, setSupportQrisDialog] = useState(false);
   useEffect(() => {
     if (navigator.storage?.estimate) {
       navigator.storage.estimate().then(est => {
@@ -441,15 +442,14 @@ export default function Pengaturan() {
              >
                💡 Request Fitur
              </a>
-              <a
-                href={SUPPORT_QRIS_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => setSupportQrisDialog(true)}
                 className="flex items-center justify-center gap-2 w-full h-9 rounded-lg border border-warning/30 bg-warning/5 text-xs font-semibold text-warning hover:bg-warning/10 transition-colors"
               >
                 💳 Dukung Pengembangan via QRIS
-              </a>
-           </div>
+              </button>
+            </div>
            {storageUsage && (
              <div className="pt-2 border-t">
                <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground mb-1.5">
@@ -469,6 +469,25 @@ export default function Pengaturan() {
            )}
         </CardContent>
       </Card>
+
+      <Dialog open={supportQrisDialog} onOpenChange={setSupportQrisDialog}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md rounded-xl p-3">
+          <DialogHeader>
+            <DialogTitle>Dukung Pengembangan via QRIS</DialogTitle>
+          </DialogHeader>
+          <div className="rounded-lg border bg-muted/30 p-2">
+            <img
+              src={SUPPORT_QRIS_URL}
+              alt="QRIS Dukungan AlaalaKasir"
+              className="w-full h-auto max-h-[70vh] object-contain rounded-md"
+              loading="lazy"
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground text-center">
+            Scan QRIS ini dari aplikasi pembayaran kamu.
+          </p>
+        </DialogContent>
+      </Dialog>
 
       {/* Store Dialog */}
       <Dialog open={storeDialog} onOpenChange={setStoreDialog}>
