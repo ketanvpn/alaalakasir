@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
+import { Capacitor } from '@capacitor/core';
+import { BluetoothLe } from '@capacitor-community/bluetooth-le';
 import { Download, Share2, Printer, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,6 +18,10 @@ interface ReceiptProps {
   storeSettings: StoreSettings | undefined;
   paymentMethodName: string;
 }
+
+const PRINTER_SERVICE_UUID = '000018f0-0000-1000-8000-00805f9b34fb';
+const PRINTER_CHARACTERISTIC_UUID = '00002af1-0000-1000-8000-00805f9b34fb';
+const PRINTER_DEVICE_ID_KEY = 'alaalakasir_ble_printer_device_id';
 
 export default function Receipt({ open, onClose, transaction, items, storeSettings, paymentMethodName }: ReceiptProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -80,6 +86,83 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
   };
 
   const handleBluetoothPrint = async () => {
+    const buildEscPosPayload = () => {
+      const encoder = new TextEncoder();
+      const lines: string[] = [];
+
+      lines.push('\x1B\x61\x01');
+      lines.push(`${storeSettings?.storeName || 'Toko'}\n`);
+      if (storeSettings?.address) lines.push(`${storeSettings.address}\n`);
+      if (storeSettings?.phone) lines.push(`${storeSettings.phone}\n`);
+      lines.push('--------------------------------\n');
+      lines.push(`No: ${transaction.receiptNumber}\n`);
+      lines.push(`${format(new Date(transaction.date), 'dd/MM/yyyy HH:mm')}\n`);
+      lines.push(`Metode: ${paymentMethodName}\n`);
+      lines.push('--------------------------------\n');
+
+      lines.push('\x1B\x61\x00');
+      for (const item of items) {
+        lines.push(`${item.productName}\n`);
+        if (item.notes) lines.push(`  ${item.notes}\n`);
+        lines.push(`  ${item.quantity} x Rp ${item.price.toLocaleString('id-ID')}  Rp ${item.subtotal.toLocaleString('id-ID')}\n`);
+      }
+
+      lines.push('--------------------------------\n');
+      lines.push(`Subtotal:  Rp ${transaction.subtotal.toLocaleString('id-ID')}\n`);
+      if (transaction.discountAmount > 0) {
+        lines.push(`Diskon:   -Rp ${transaction.discountAmount.toLocaleString('id-ID')}\n`);
+      }
+      lines.push(`TOTAL:     Rp ${transaction.total.toLocaleString('id-ID')}\n`);
+      lines.push(`Bayar:     Rp ${transaction.paymentAmount.toLocaleString('id-ID')}\n`);
+      lines.push(`Kembali:   Rp ${transaction.change.toLocaleString('id-ID')}\n`);
+      lines.push('--------------------------------\n');
+      lines.push('\x1B\x61\x01');
+      lines.push(`${storeSettings?.receiptFooter || 'Terima kasih!'}\n\n\n`);
+      return encoder.encode(lines.join(''));
+    };
+
+    const toDataView = (bytes: Uint8Array) => new DataView(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+
+    const isAndroidNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
+    if (isAndroidNative) {
+      try {
+        await BluetoothLe.initialize();
+        try {
+          await BluetoothLe.requestEnable();
+        } catch {
+          // requestEnable can be cancelled if already enabled
+        }
+
+        let deviceId = localStorage.getItem(PRINTER_DEVICE_ID_KEY) || '';
+
+        if (!deviceId) {
+          toast.info('Pilih printer Bluetooth thermal 58mm...');
+          const device = await BluetoothLe.requestDevice({
+            services: [PRINTER_SERVICE_UUID],
+            optionalServices: [PRINTER_SERVICE_UUID],
+          });
+          deviceId = device.deviceId;
+          localStorage.setItem(PRINTER_DEVICE_ID_KEY, deviceId);
+        }
+
+        toast.info('Menghubungkan printer Bluetooth...');
+        await BluetoothLe.connect(deviceId);
+
+        const payload = buildEscPosPayload();
+        for (let i = 0; i < payload.length; i += 180) {
+          const chunk = payload.slice(i, i + 180);
+          await BluetoothLe.writeWithoutResponse(deviceId, PRINTER_SERVICE_UUID, PRINTER_CHARACTERISTIC_UUID, toDataView(chunk));
+        }
+
+        await BluetoothLe.disconnect(deviceId);
+        toast.success('Struk berhasil dicetak ke printer Bluetooth!');
+        return;
+      } catch {
+        localStorage.removeItem(PRINTER_DEVICE_ID_KEY);
+        toast.error('Gagal cetak Bluetooth native. Coba pairing ulang printer lalu cetak lagi.');
+      }
+    }
+
     if (!('bluetooth' in navigator)) {
       const canvas = await captureReceipt();
       if (!canvas) return;
@@ -142,47 +225,14 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
       toast.info('Mencari printer Bluetooth...');
       // @ts-expect-error Web Bluetooth API is not fully typed in TypeScript
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
-        optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb'],
+        filters: [{ services: [PRINTER_SERVICE_UUID] }],
+        optionalServices: [PRINTER_SERVICE_UUID],
       });
 
       const server = await device.gatt.connect();
-      const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
-      const characteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
-
-      // Build ESC/POS text
-      const encoder = new TextEncoder();
-      const lines: string[] = [];
-      
-      lines.push('\x1B\x61\x01'); // Center align
-      lines.push(`${storeSettings?.storeName || 'Toko'}\n`);
-      if (storeSettings?.address) lines.push(`${storeSettings.address}\n`);
-      if (storeSettings?.phone) lines.push(`${storeSettings.phone}\n`);
-      lines.push('--------------------------------\n');
-      lines.push(`No: ${transaction.receiptNumber}\n`);
-      lines.push(`${format(new Date(transaction.date), 'dd/MM/yyyy HH:mm')}\n`);
-      lines.push('--------------------------------\n');
-      
-      lines.push('\x1B\x61\x00'); // Left align
-      for (const item of items) {
-        lines.push(`${item.productName}\n`);
-        if (item.notes) lines.push(`  ${item.notes}\n`);
-        lines.push(`  ${item.quantity} x Rp ${item.price.toLocaleString('id-ID')}  Rp ${item.subtotal.toLocaleString('id-ID')}\n`);
-      }
-      
-      lines.push('--------------------------------\n');
-      lines.push(`Subtotal:  Rp ${transaction.subtotal.toLocaleString('id-ID')}\n`);
-      if (transaction.discountAmount > 0) {
-        lines.push(`Diskon:   -Rp ${transaction.discountAmount.toLocaleString('id-ID')}\n`);
-      }
-      lines.push(`TOTAL:     Rp ${transaction.total.toLocaleString('id-ID')}\n`);
-      lines.push(`Bayar:     Rp ${transaction.paymentAmount.toLocaleString('id-ID')}\n`);
-      lines.push(`Kembali:   Rp ${transaction.change.toLocaleString('id-ID')}\n`);
-      lines.push('--------------------------------\n');
-      lines.push('\x1B\x61\x01'); // Center
-      lines.push(`${storeSettings?.receiptFooter || 'Terima kasih!'}\n\n\n`);
-
-      const data = encoder.encode(lines.join(''));
+      const service = await server.getPrimaryService(PRINTER_SERVICE_UUID);
+      const characteristic = await service.getCharacteristic(PRINTER_CHARACTERISTIC_UUID);
+      const data = buildEscPosPayload();
       
       // Send in chunks of 100 bytes
       for (let i = 0; i < data.length; i += 100) {
@@ -226,9 +276,9 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
           <div className="flex justify-between text-[10px]">
             <span>No: {transaction.receiptNumber}</span>
           </div>
-          <div className="flex justify-between text-[10px] mb-1">
-            <span>{format(new Date(transaction.date), 'dd/MM/yyyy HH:mm', { locale: id })}</span>
-            <span>{paymentMethodName}</span>
+          <div className="grid grid-cols-[1fr_auto] items-start gap-2 text-[10px] mb-1">
+            <span className="truncate">{format(new Date(transaction.date), 'dd/MM/yyyy HH:mm', { locale: id })}</span>
+            <span className="text-right whitespace-nowrap">{paymentMethodName}</span>
           </div>
 
           <div className="border-t border-dashed border-gray-400 my-2" />
@@ -236,7 +286,7 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
           {/* Items */}
           {items.map((item, i) => (
             <div key={i} className="mb-1">
-              <p className="text-[11px] font-medium">{item.productName}</p>
+              <p className="text-[11px] font-medium break-words">{item.productName}</p>
               {item.notes && <p className="text-[9px] text-gray-500 italic">  {item.notes}</p>}
               <div className="flex justify-between text-[10px]">
                 <span>{item.quantity} x {rp(item.price)}</span>
