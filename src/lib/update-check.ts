@@ -6,11 +6,23 @@ interface GitHubTag {
   name: string;
 }
 
+interface GitHubReleaseAsset {
+  name: string;
+  browser_download_url: string;
+}
+
+interface GitHubRelease {
+  tag_name: string;
+  html_url: string;
+  assets: GitHubReleaseAsset[];
+}
+
 export interface AppUpdateInfo {
   currentVersion: string;
   latestVersion: string | null;
   updateAvailable: boolean;
   releaseUrl: string;
+  apkUrl: string | null;
 }
 
 function normalizeVersion(version: string): string {
@@ -40,12 +52,32 @@ function compareVersions(a: string, b: string): number {
 }
 
 export async function checkForAppUpdate(): Promise<AppUpdateInfo> {
+  const headers = { Accept: 'application/vnd.github+json' };
+  const latestReleaseResponse = await fetch(`https://api.github.com/repos/${APP_REPOSITORY}/releases/latest`, {
+    headers,
+    cache: 'no-store',
+  });
+
+  if (latestReleaseResponse.ok) {
+    const release = (await latestReleaseResponse.json()) as GitHubRelease;
+    const apkAsset = release.assets.find(asset => asset.name.endsWith('.apk'));
+
+    return {
+      currentVersion: CURRENT_APP_VERSION,
+      latestVersion: release.tag_name,
+      updateAvailable: compareVersions(CURRENT_APP_VERSION, release.tag_name) < 0,
+      releaseUrl: release.html_url,
+      apkUrl: apkAsset?.browser_download_url ?? null,
+    };
+  }
+
   const response = await fetch(`https://api.github.com/repos/${APP_REPOSITORY}/tags`, {
-    headers: { Accept: 'application/vnd.github+json' },
+    headers,
+    cache: 'no-store',
   });
 
   if (!response.ok) {
-    throw new Error('Gagal mengecek versi terbaru');
+    throw new Error(`Gagal mengecek versi terbaru (${response.status})`);
   }
 
   const tags = (await response.json()) as GitHubTag[];
@@ -56,6 +88,7 @@ export async function checkForAppUpdate(): Promise<AppUpdateInfo> {
     currentVersion: CURRENT_APP_VERSION,
     latestVersion,
     updateAvailable: latestVersion ? compareVersions(CURRENT_APP_VERSION, latestVersion) < 0 : false,
-    releaseUrl: GITHUB_RELEASES_URL,
+    releaseUrl: latestVersion ? `${GITHUB_RELEASES_URL}/tag/${latestVersion}` : GITHUB_RELEASES_URL,
+    apkUrl: null,
   };
 }

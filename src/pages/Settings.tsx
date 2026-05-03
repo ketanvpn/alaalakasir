@@ -234,8 +234,9 @@ export default function Pengaturan() {
       } else {
         toast.info('Belum ada tag versi di GitHub');
       }
-    } catch {
-      toast.error('Gagal mengecek update. Coba lagi saat online.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gagal mengecek update';
+      toast.error(`${message}. Coba lagi saat online.`);
     } finally {
       setCheckingUpdate(false);
     }
@@ -418,7 +419,7 @@ export default function Pengaturan() {
              </div>
              {updateInfo?.updateAvailable && (
                <a
-                 href={GITHUB_RELEASES_URL}
+                 href={updateInfo.apkUrl ?? updateInfo.releaseUrl}
                  target="_blank"
                  rel="noopener noreferrer"
                  className="block text-xs font-semibold text-primary hover:underline"

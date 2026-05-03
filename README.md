@@ -112,7 +112,7 @@ Saat build berjalan dari tag GitHub, workflow CI mengisi `VITE_APP_VERSION` dari
 
 ### Android APK Release
 
-APK debug dibuat oleh workflow **Android APK** saat tag `v*` dipush:
+APK dibuat oleh workflow **Android APK** saat tag `v*` dipush:
 
 ```bash
 git tag v0.1.0
@@ -122,6 +122,15 @@ git push origin v0.1.0
 Workflow juga bisa dijalankan manual dari tab **Actions** dengan mengisi `release_tag`, misalnya `v0.1.0`, untuk meng-upload APK ke release yang sudah ada.
 
 APK hasil build akan tersedia sebagai artifact workflow dan, jika tag/release tersedia, akan di-upload ke GitHub Release sebagai asset.
+
+Untuk update APK tanpa uninstall, APK harus ditandatangani dengan keystore yang sama pada setiap rilis. Tambahkan GitHub Secrets berikut sebelum rilis publik:
+
+- `ANDROID_KEYSTORE_BASE64` — file `.jks` dalam bentuk base64
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+Jika secrets belum ada, workflow akan membuat debug APK. Debug APK bisa dipakai untuk tes, tetapi tanda tangannya bisa berbeda antar build sehingga Android dapat menolak instalasi update di atas APK lama.
 
 ---
 
