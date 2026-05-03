@@ -129,6 +129,21 @@ export interface StoreSettings {
 
 // === Database ===
 
+const CURRENT_DB_NAME = 'alaalakasir-db';
+const LEGACY_DB_NAMES = ['alalakasir-db', 'kasirgratisan-db'] as const;
+const TABLE_NAMES = [
+  'categories',
+  'products',
+  'suppliers',
+  'stockIns',
+  'stockOuts',
+  'hppHistory',
+  'paymentMethods',
+  'transactions',
+  'transactionItems',
+  'storeSettings',
+] as const;
+
 class PosDatabase extends Dexie {
   categories!: Table<Category>;
   products!: Table<Product>;
@@ -142,7 +157,7 @@ class PosDatabase extends Dexie {
   storeSettings!: Table<StoreSettings>;
 
   constructor() {
-    super('kasirgratisan-db');
+    super(CURRENT_DB_NAME);
 
     // Version 1 — original schema (must remain for migration path)
     this.version(1).stores({
@@ -284,8 +299,54 @@ class PosDatabase extends Dexie {
 
 export const db = new PosDatabase();
 
+async function migrateLegacyDatabaseIfNeeded() {
+  const hasCurrentData = await Promise.all(TABLE_NAMES.map(tableName => db.table(tableName).count()))
+    .then(counts => counts.some(count => count > 0));
+
+  if (hasCurrentData) return;
+
+  for (const legacyDbName of LEGACY_DB_NAMES) {
+    const legacyDb = new Dexie(legacyDbName);
+    legacyDb.version(4).stores({
+      categories:       '++id, name, isDeleted',
+      products:         '++id, name, &sku, categoryId, barcode, isDeleted',
+      suppliers:        '++id, name, isDeleted',
+      stockIns:         '++id, productId, supplierId, date',
+      stockOuts:        '++id, productId, date',
+      hppHistory:       '++id, productId, date',
+      paymentMethods:   '++id, name, category',
+      transactions:     '++id, date, &receiptNumber, paymentMethodId, status, orderNumber',
+      transactionItems: '++id, transactionId, productId',
+      storeSettings:    '++id',
+    });
+
+    try {
+      await legacyDb.open();
+      const legacyCounts = await Promise.all(TABLE_NAMES.map(tableName => legacyDb.table(tableName).count()));
+      const hasLegacyData = legacyCounts.some(count => count > 0);
+      if (!hasLegacyData) continue;
+
+      await db.transaction('rw', TABLE_NAMES.map(tableName => db.table(tableName)), async () => {
+        for (const tableName of TABLE_NAMES) {
+          const records = await legacyDb.table(tableName).toArray();
+          if (records.length > 0) {
+            await db.table(tableName).bulkAdd(records);
+          }
+        }
+      });
+      return;
+    } catch (error) {
+      console.warn(`Legacy database migration skipped for ${legacyDbName}:`, error);
+    } finally {
+      legacyDb.close();
+    }
+  }
+}
+
 // Seed default data
 export async function seedDefaultData() {
+  await migrateLegacyDatabaseIfNeeded();
+
   const categoryCount = await db.categories.count();
   if (categoryCount === 0) {
     await db.categories.bulkAdd([

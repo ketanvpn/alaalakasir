@@ -376,14 +376,14 @@ export default function Pengaturan() {
       {/* About */}
       <Card className="border-0 shadow-sm">
         <CardContent className="p-4 text-center space-y-2">
-           <p className="text-sm font-bold">KasirGratisan</p>
+           <p className="text-sm font-bold">AlaalaKasir</p>
            <p className="text-xs text-muted-foreground">POS Gratis untuk UMKM Indonesia 🇮🇩</p>
            <p className="text-[10px] text-muted-foreground">v1.0 • Data tersimpan di perangkat</p>
 
            {/* Links */}
            <div className="flex flex-col gap-2 pt-2">
              <a
-               href="https://kasirgratisan.fider.io"
+                href="https://github.com"
                target="_blank"
                rel="noopener noreferrer"
                className="flex items-center justify-center gap-2 w-full h-9 rounded-lg border border-border bg-muted/50 text-xs font-semibold text-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-colors"

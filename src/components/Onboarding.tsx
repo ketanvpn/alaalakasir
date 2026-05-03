@@ -202,8 +202,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               </h2>
               <p className="text-muted-foreground leading-relaxed max-w-xs mx-auto">
                 {isInstalled || installDone
-                  ? 'KasirGratisan sudah terinstall. Kamu bisa buka langsung dari home screen!'
-                  : 'Install KasirGratisan di HP kamu supaya bisa diakses langsung dari home screen, tanpa buka browser.'}
+                  ? 'AlaalaKasir sudah terinstall. Kamu bisa buka langsung dari home screen!'
+                  : 'Install AlaalaKasir di HP kamu supaya bisa diakses langsung dari home screen, tanpa buka browser.'}
               </p>
             </div>
             {!isInstalled && !installDone && (
@@ -216,7 +216,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       const ok = await install();
                       if (ok) {
                         setInstallDone(true);
-                        toast.success('Berhasil install KasirGratisan!');
+                        toast.success('Berhasil install AlaalaKasir!');
                       }
                     }}
                   >

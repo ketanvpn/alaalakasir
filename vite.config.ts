@@ -18,10 +18,10 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "kasirgratisan-icon.png", "og-image.png"],
+      includeAssets: ["favicon.ico", "alaalakasir-icon.png", "og-image.png"],
       manifest: {
-        name: "KasirGratisan - POS UMKM Gratis",
-        short_name: "KasirGratisan",
+        name: "AlaalaKasir - POS UMKM Offline",
+        short_name: "AlaalaKasir",
         description: "Aplikasi kasir gratis untuk UMKM Indonesia. Offline & tanpa biaya.",
         start_url: "/",
         display: "standalone",
@@ -30,13 +30,13 @@ export default defineConfig(({ mode }) => ({
         orientation: "any",
         icons: [
           {
-            src: "/kasirgratisan-icon.png",
+            src: "/alaalakasir-icon.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any"
           },
           {
-            src: "/kasirgratisan-icon.png",
+            src: "/alaalakasir-icon.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any maskable",

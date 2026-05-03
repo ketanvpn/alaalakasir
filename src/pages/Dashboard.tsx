@@ -69,7 +69,7 @@ export default function Dashboard() {
       {/* Header */}
       <div>
         <p className="text-sm text-muted-foreground">{format(new Date(), 'EEEE, d MMMM yyyy', { locale: id })}</p>
-        <h1 className="text-2xl font-bold tracking-tight">{storeSettings?.storeName || 'KasirGratisan'}</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{storeSettings?.storeName || 'AlaalaKasir'}</h1>
       </div>
 
       {/* Backup Reminder */}

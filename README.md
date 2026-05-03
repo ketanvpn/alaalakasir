@@ -1,4 +1,4 @@
-# 🧾 KasirGratisan
+# 🧾 AlaalaKasir
 
 A free, offline-first, open source Point of Sale (POS) Progressive Web App built for Indonesian Micro, Small, and Medium Enterprises (UMKM). Data transaksi utama disimpan lokal di perangkat pengguna menggunakan IndexedDB, tanpa registrasi dan tanpa server aplikasi untuk operasional kasir harian.
 
@@ -26,14 +26,14 @@ A free, offline-first, open source Point of Sale (POS) Progressive Web App built
 
 ## 📱 Platform Support
 
-KasirGratisan saat ini adalah **Progressive Web App (PWA)**, bukan aplikasi native Android/iOS.
+AlaalaKasir saat ini adalah **Progressive Web App (PWA)** dengan wrapper Android berbasis Capacitor.
 
 | Platform | Status | Catatan |
 |----------|--------|---------|
 | Desktop browser | Supported | Chrome/Edge/Firefox modern |
 | Android browser | Supported | Bisa install ke home screen sebagai PWA |
 | iPhone/iPad Safari | Supported with limitations | Bisa Add to Home Screen, tetapi beberapa Web API seperti Bluetooth tidak tersedia |
-| Android APK | Not included yet | Perlu wrapper seperti Capacitor sebelum bisa build APK |
+| Android APK | Supported via Capacitor | Folder Android tersedia, build APK membutuhkan JDK/Android toolchain |
 | iOS IPA/App Store | Not included yet | Perlu wrapper native dan proses Apple Developer |
 
 ### Offline Notes
@@ -78,8 +78,8 @@ KasirGratisan saat ini adalah **Progressive Web App (PWA)**, bukan aplikasi nati
 
 ```bash
 # Clone the repository
-git clone https://github.com/user/kasirgratisan.git
-cd kasirgratisan
+git clone https://github.com/user/alaalakasir.git
+cd alaalakasir
 
 # Install dependencies
 npm install
@@ -110,7 +110,6 @@ src/
 │   ├── db.ts                # Dexie database schema, interfaces, seed data
 │   ├── utils.ts             # Utility functions (cn, etc.)
 │   ├── image-utils.ts       # Image compression utility
-│   └── version-check.ts     # Version check webhook
 ├── components/
 │   ├── layout/
 │   │   ├── AppLayout.tsx    # Main layout (responsive: max-w-lg mobile, max-w-6xl tablet/landscape)
@@ -169,9 +168,9 @@ New COGS = ((Old Stock × Old COGS) + (New Qty × Buy Price)) / (Old Stock + New
 
 ## 💬 Feedback & Feature Requests
 
-Got suggestions, feature ideas, or found a bug? Submit and vote on our board:
+Got suggestions, feature ideas, or found a bug? Use GitHub Issues in this repository:
 
-👉 **[kasirgratisan.fider.io](https://kasirgratisan.fider.io/)**
+👉 **GitHub Issues**
 
 ---
 
