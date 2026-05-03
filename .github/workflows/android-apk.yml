@@ -84,6 +84,21 @@ jobs:
         run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/alaalakasir-release.jks
 
+      - name: Verify Android signing key
+        run: |
+          if ! keytool -list -keystore android/app/alaalakasir-release.jks -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null; then
+            echo "Failed to read the keystore or alias. Check ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, and ANDROID_KEY_ALIAS."
+            exit 1
+          fi
+
+          if ! keytool -certreq -keystore android/app/alaalakasir-release.jks -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" -keypass "$ANDROID_KEY_PASSWORD" -file /tmp/alaalakasir-release.csr >/dev/null; then
+            echo "Failed to access the private key. Check ANDROID_KEY_PASSWORD."
+            exit 1
+          fi
+
+          rm -f /tmp/alaalakasir-release.csr
+          echo "Android signing key verified."
+
       - name: Build signed release APK
         working-directory: android
         env:
