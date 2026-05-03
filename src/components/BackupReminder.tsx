@@ -4,6 +4,10 @@ import { Button } from '@/components/ui/button';
 import { db } from '@/lib/db';
 import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { toast } from 'sonner';
 
 interface BackupReminderProps {
   lastBackupAt: Date | null;
@@ -58,6 +62,23 @@ export function shouldShowBackupReminder(lastBackupAt: Date | null): boolean {
   return hoursSince >= 24;
 }
 
+async function saveBackupTimestamp() {
+  const settings = await db.storeSettings.toCollection().first();
+  if (settings?.id) {
+    await db.storeSettings.update(settings.id, { lastBackupAt: new Date() });
+  }
+}
+
+function downloadBackupInBrowser(fileName: string, json: string) {
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // Export all data as JSON and trigger download
 export async function exportBackupData() {
   const data = {
@@ -75,17 +96,28 @@ export async function exportBackupData() {
     storeSettings: await db.storeSettings.toArray(),
   };
 
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `alaalakasir-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const fileName = `alaalakasir-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const json = JSON.stringify(data, null, 2);
 
-  // Update last backup time
-  const settings = await db.storeSettings.toCollection().first();
-  if (settings?.id) {
-    await db.storeSettings.update(settings.id, { lastBackupAt: new Date() });
+  if (Capacitor.isNativePlatform()) {
+    const writeResult = await Filesystem.writeFile({
+      path: fileName,
+      data: json,
+      directory: Directory.Cache,
+      encoding: 'utf8',
+    });
+
+    await Share.share({
+      title: 'Backup AlaalaKasir',
+      text: 'Simpan file backup JSON ini di tempat aman, misalnya Google Drive atau folder Downloads.',
+      url: writeResult.uri,
+      dialogTitle: 'Simpan atau bagikan backup',
+    });
+    toast.success('Backup dibuat. Pilih lokasi simpan dari menu Android.');
+  } else {
+    downloadBackupInBrowser(fileName, json);
+    toast.success('Backup diunduh sebagai file JSON');
   }
+
+  await saveBackupTimestamp();
 }

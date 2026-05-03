@@ -77,6 +77,9 @@ export async function checkForAppUpdate(): Promise<AppUpdateInfo> {
   });
 
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Repository GitHub tidak bisa diakses publik');
+    }
     throw new Error(`Gagal mengecek versi terbaru (${response.status})`);
   }
 

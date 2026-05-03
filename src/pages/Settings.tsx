@@ -110,7 +110,7 @@ export default function Pengaturan() {
   const handleImport = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
+    input.accept = '.json,application/json';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
@@ -183,7 +183,7 @@ export default function Pengaturan() {
             }
           }
 
-          toast.success('Data berhasil di-restore!');
+          toast.success('Data berhasil di-restore! Aplikasi akan memuat data terbaru.');
         } catch (importErr) {
           // CR-7: Rollback — restore from snapshot
           try {
@@ -236,7 +236,7 @@ export default function Pengaturan() {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Gagal mengecek update';
-      toast.error(`${message}. Coba lagi saat online.`);
+      toast.error(message);
     } finally {
       setCheckingUpdate(false);
     }
