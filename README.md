@@ -104,8 +104,8 @@ Aplikasi menampilkan versi dari build-time variable `VITE_APP_VERSION`. Jika tid
 Untuk rilis dari GitHub tag, gunakan format semantic version:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.4.1
+git push origin v0.4.1
 ```
 
 Saat build berjalan dari tag GitHub, workflow CI mengisi `VITE_APP_VERSION` dari nama tag. Menu Pengaturan dapat mengecek tag terbaru di repository GitHub tanpa mengirim data toko atau transaksi.
@@ -115,11 +115,11 @@ Saat build berjalan dari tag GitHub, workflow CI mengisi `VITE_APP_VERSION` dari
 APK dibuat oleh workflow **Android APK** saat tag `v*` dipush:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.4.1
+git push origin v0.4.1
 ```
 
-Workflow juga bisa dijalankan manual dari tab **Actions** dengan mengisi `release_tag`, misalnya `v0.1.0`, untuk meng-upload APK ke release yang sudah ada.
+Workflow juga bisa dijalankan manual dari tab **Actions** dengan mengisi `release_tag`, misalnya `v0.4.1`, untuk meng-upload APK ke release yang sudah ada.
 
 APK hasil build akan tersedia sebagai artifact workflow dan, jika tag/release tersedia, akan di-upload ke GitHub Release sebagai asset.
 

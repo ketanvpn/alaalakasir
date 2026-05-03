@@ -432,7 +432,7 @@ export default function Pengaturan() {
            {/* Links */}
            <div className="flex flex-col gap-2 pt-2">
              <a
-                href="https://github.com"
+                href="https://github.com/ketanvpn/alaalakasir/issues"
                target="_blank"
                rel="noopener noreferrer"
                className="flex items-center justify-center gap-2 w-full h-9 rounded-lg border border-border bg-muted/50 text-xs font-semibold text-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-colors"
