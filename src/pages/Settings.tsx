@@ -16,6 +16,8 @@ import { exportBackupData } from '@/components/BackupReminder';
 import { compressImage } from '@/lib/image-utils';
 import { CURRENT_APP_VERSION, GITHUB_RELEASES_URL, checkForAppUpdate, type AppUpdateInfo } from '@/lib/update-check';
 
+const SUPPORT_QRIS_URL = '/support/qris-ketantech.png';
+
 export default function Pengaturan() {
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
   const paymentMethods = useLiveQuery(() => db.paymentMethods.toArray());
@@ -439,14 +441,14 @@ export default function Pengaturan() {
              >
                💡 Request Fitur
              </a>
-             <a
-               href="https://traktir.jipraks.com"
-               target="_blank"
-               rel="noopener noreferrer"
-               className="flex items-center justify-center gap-2 w-full h-9 rounded-lg border border-warning/30 bg-warning/5 text-xs font-semibold text-warning hover:bg-warning/10 transition-colors"
-             >
-               ☕ Traktir Kopi untuk Developer
-             </a>
+              <a
+                href={SUPPORT_QRIS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full h-9 rounded-lg border border-warning/30 bg-warning/5 text-xs font-semibold text-warning hover:bg-warning/10 transition-colors"
+              >
+                💳 Dukung Pengembangan via QRIS
+              </a>
            </div>
            {storageUsage && (
              <div className="pt-2 border-t">
