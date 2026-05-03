@@ -89,36 +89,60 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
 
   const handleBluetoothPrint = async () => {
     const buildEscPosText = () => {
+      const PAPER_WIDTH = 32;
+      const hr = '-'.repeat(PAPER_WIDTH);
+      const safe = (text: string) => (text || '').replace(/\s+/g, ' ').trim();
+      const lineCenter = (text: string) => {
+        const clean = safe(text);
+        const pad = Math.max(0, Math.floor((PAPER_WIDTH - clean.length) / 2));
+        return `${' '.repeat(pad)}${clean}\n`;
+      };
+      const lineKV = (label: string, value: string) => {
+        const l = safe(label);
+        const v = safe(value);
+        const spaces = Math.max(1, PAPER_WIDTH - l.length - v.length);
+        return `${l}${' '.repeat(spaces)}${v}\n`;
+      };
+      const fit = (text: string, max = PAPER_WIDTH) => {
+        const clean = safe(text);
+        if (clean.length <= max) return clean;
+        return `${clean.slice(0, Math.max(0, max - 1))}…`;
+      };
+
       const lines: string[] = [];
 
+      lines.push('\x1B\x40');
       lines.push('\x1B\x61\x01');
-      lines.push(`${storeSettings?.storeName || 'Toko'}\n`);
-      if (storeSettings?.address) lines.push(`${storeSettings.address}\n`);
-      if (storeSettings?.phone) lines.push(`${storeSettings.phone}\n`);
-      lines.push('--------------------------------\n');
-      lines.push(`No: ${transaction.receiptNumber}\n`);
-      lines.push(`${format(new Date(transaction.date), 'dd/MM/yyyy HH:mm')}\n`);
-      lines.push(`Metode: ${paymentMethodName}\n`);
-      lines.push('--------------------------------\n');
+      lines.push(lineCenter(storeSettings?.storeName || 'Toko'));
+      if (storeSettings?.address) lines.push(lineCenter(storeSettings.address));
+      if (storeSettings?.phone) lines.push(lineCenter(storeSettings.phone));
+      lines.push(`${hr}\n`);
+      lines.push(lineKV('No:', transaction.receiptNumber));
+      lines.push(lineKV('Tanggal:', format(new Date(transaction.date), 'dd/MM/yyyy HH:mm')));
+      lines.push(lineKV('Metode:', paymentMethodName));
+      lines.push(`${hr}\n`);
 
       lines.push('\x1B\x61\x00');
       for (const item of items) {
-        lines.push(`${item.productName}\n`);
-        if (item.notes) lines.push(`  ${item.notes}\n`);
-        lines.push(`  ${item.quantity} x Rp ${item.price.toLocaleString('id-ID')}  Rp ${item.subtotal.toLocaleString('id-ID')}\n`);
+        lines.push(`${fit(item.productName)}\n`);
+        if (item.notes) lines.push(`  ${fit(item.notes, PAPER_WIDTH - 2)}\n`);
+        const left = `${item.quantity} x Rp ${item.price.toLocaleString('id-ID')}`;
+        const right = `Rp ${item.subtotal.toLocaleString('id-ID')}`;
+        lines.push(lineKV(left, right));
       }
 
-      lines.push('--------------------------------\n');
-      lines.push(`Subtotal:  Rp ${transaction.subtotal.toLocaleString('id-ID')}\n`);
+      lines.push(`${hr}\n`);
+      lines.push(lineKV('Subtotal:', `Rp ${transaction.subtotal.toLocaleString('id-ID')}`));
       if (transaction.discountAmount > 0) {
-        lines.push(`Diskon:   -Rp ${transaction.discountAmount.toLocaleString('id-ID')}\n`);
+        lines.push(lineKV('Diskon:', `-Rp ${transaction.discountAmount.toLocaleString('id-ID')}`));
       }
-      lines.push(`TOTAL:     Rp ${transaction.total.toLocaleString('id-ID')}\n`);
-      lines.push(`Bayar:     Rp ${transaction.paymentAmount.toLocaleString('id-ID')}\n`);
-      lines.push(`Kembali:   Rp ${transaction.change.toLocaleString('id-ID')}\n`);
-      lines.push('--------------------------------\n');
+      lines.push(lineKV('TOTAL:', `Rp ${transaction.total.toLocaleString('id-ID')}`));
+      lines.push(lineKV('Bayar:', `Rp ${transaction.paymentAmount.toLocaleString('id-ID')}`));
+      lines.push(lineKV('Kembali:', `Rp ${transaction.change.toLocaleString('id-ID')}`));
+      lines.push(`${hr}\n`);
       lines.push('\x1B\x61\x01');
-      lines.push(`${storeSettings?.receiptFooter || 'Terima kasih!'}\n\n\n`);
+      lines.push(lineCenter(storeSettings?.receiptFooter || 'Terima kasih!'));
+      lines.push('\n\n');
       return lines.join('');
     };
 

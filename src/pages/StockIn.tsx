@@ -87,7 +87,7 @@ export default function StockInPage() {
   };
 
   return (
-    <div className="px-4 pt-6 pb-4 space-y-4">
+    <div className="px-4 pt-6 pb-4 h-[calc(100dvh-4.5rem)] flex flex-col gap-4 overflow-hidden">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Link to="/settings">
@@ -113,36 +113,38 @@ export default function StockInPage() {
 
       <p className="text-xs text-muted-foreground">{filtered.length} catatan</p>
 
-      {filtered.length === 0 ? (
-        <div className="text-center py-12">
-          <ArrowDownToLine className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">Belum ada data stock in</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map(si => (
-            <Card key={si.id} className="border-0 shadow-sm">
-              <CardContent className="p-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold">{getProductName(si.productId)}</h3>
-                    <p className="text-xs text-muted-foreground">dari {getSupplierName(si.supplierId)}</p>
-                    <div className="flex items-center gap-3 mt-1.5">
-                      <span className="text-xs font-medium bg-success/10 text-success px-2 py-0.5 rounded">+{si.quantity}</span>
-                      <span className="text-xs text-muted-foreground">@ Rp {si.buyPrice.toLocaleString('id-ID')}</span>
+      <div className="flex-1 overflow-y-auto pb-24">
+        {filtered.length === 0 ? (
+          <div className="text-center py-12">
+            <ArrowDownToLine className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-sm text-muted-foreground">Belum ada data stock in</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map(si => (
+              <Card key={si.id} className="border-0 shadow-sm">
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold">{getProductName(si.productId)}</h3>
+                      <p className="text-xs text-muted-foreground">dari {getSupplierName(si.supplierId)}</p>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-xs font-medium bg-success/10 text-success px-2 py-0.5 rounded">+{si.quantity}</span>
+                        <span className="text-xs text-muted-foreground">@ Rp {si.buyPrice.toLocaleString('id-ID')}</span>
+                      </div>
+                      {si.notes && <p className="text-xs text-muted-foreground mt-1 italic">{si.notes}</p>}
                     </div>
-                    {si.notes && <p className="text-xs text-muted-foreground mt-1 italic">{si.notes}</p>}
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">{format(new Date(si.date), 'dd MMM yy', { locale: id })}</p>
+                      <p className="text-sm font-bold mt-1">Rp {si.totalPrice.toLocaleString('id-ID')}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">{format(new Date(si.date), 'dd MMM yy', { locale: id })}</p>
-                    <p className="text-sm font-bold mt-1">Rp {si.totalPrice.toLocaleString('id-ID')}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
         </div>
-      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-[95vw] rounded-xl">

@@ -65,7 +65,7 @@ export default function StockOutPage() {
   };
 
   return (
-    <div className="px-4 pt-6 pb-4 space-y-4">
+    <div className="px-4 pt-6 pb-4 h-[calc(100dvh-4.5rem)] flex flex-col gap-4 overflow-hidden">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Link to="/settings">
@@ -83,32 +83,34 @@ export default function StockOutPage() {
 
       <p className="text-xs text-muted-foreground">{stockOuts?.length ?? 0} catatan</p>
 
-      {(!stockOuts || stockOuts.length === 0) ? (
-        <div className="text-center py-12">
-          <ArrowUpFromLine className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">Belum ada data stock out</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {stockOuts.map(so => (
-            <Card key={so.id} className="border-0 shadow-sm">
-              <CardContent className="p-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold">{getProductName(so.productId)}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs font-medium bg-destructive/10 text-destructive px-2 py-0.5 rounded">-{so.quantity}</span>
-                      <span className="text-xs text-muted-foreground">{so.reason}</span>
+      <div className="flex-1 overflow-y-auto pb-24">
+        {(!stockOuts || stockOuts.length === 0) ? (
+          <div className="text-center py-12">
+            <ArrowUpFromLine className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-sm text-muted-foreground">Belum ada data stock out</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {stockOuts.map(so => (
+              <Card key={so.id} className="border-0 shadow-sm">
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold">{getProductName(so.productId)}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs font-medium bg-destructive/10 text-destructive px-2 py-0.5 rounded">-{so.quantity}</span>
+                        <span className="text-xs text-muted-foreground">{so.reason}</span>
+                      </div>
+                      {so.notes && <p className="text-xs text-muted-foreground mt-1 italic">{so.notes}</p>}
                     </div>
-                    {so.notes && <p className="text-xs text-muted-foreground mt-1 italic">{so.notes}</p>}
+                    <p className="text-xs text-muted-foreground">{format(new Date(so.date), 'dd MMM yy', { locale: id })}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">{format(new Date(so.date), 'dd MMM yy', { locale: id })}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
         </div>
-      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-[95vw] rounded-xl">

@@ -117,7 +117,7 @@ export default function Produk() {
   };
 
   return (
-    <div className="px-4 pt-6 pb-4 space-y-4">
+    <div className="px-4 pt-6 pb-4 h-[calc(100dvh-4.5rem)] flex flex-col gap-4 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold flex items-center gap-2">
@@ -158,60 +158,62 @@ export default function Produk() {
       <p className="text-xs text-muted-foreground">{filtered.length} produk ditemukan</p>
 
       {/* Product List */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-12">
-          <PackageIcon className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">Belum ada produk</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={openAdd}>
-            <Plus className="w-4 h-4 mr-1" /> Tambah Produk
-          </Button>
+      <div className="flex-1 overflow-y-auto pb-24">
+        {filtered.length === 0 ? (
+          <div className="text-center py-12">
+            <PackageIcon className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-sm text-muted-foreground">Belum ada produk</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={openAdd}>
+              <Plus className="w-4 h-4 mr-1" /> Tambah Produk
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map(p => (
+              <Card key={p.id} className="border-0 shadow-sm">
+                <CardContent className="p-3">
+                  <div className="flex items-start gap-3">
+                    {/* Product thumbnail */}
+                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                      {p.photo ? (
+                        <img src={p.photo} alt={p.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <PackageIcon className="w-5 h-5 text-muted-foreground/40" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold truncate">{p.name}</h3>
+                        <Badge variant="outline" className="text-[10px] shrink-0" style={{ borderColor: getCategoryColor(p.categoryId), color: getCategoryColor(p.categoryId) }}>
+                          {getCategoryName(p.categoryId)}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">SKU: {p.sku || '-'}</p>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-sm font-bold text-primary">Rp {p.price.toLocaleString('id-ID')}</span>
+                        <span className="text-xs text-muted-foreground">HPP: Rp {p.hpp.toLocaleString('id-ID')}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={cn('text-xs font-medium px-1.5 py-0.5 rounded', p.stock <= 5 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success')}>
+                          Stok: {p.stock} {p.unit}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}>
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(p.id!)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
         </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map(p => (
-            <Card key={p.id} className="border-0 shadow-sm">
-              <CardContent className="p-3">
-                <div className="flex items-start gap-3">
-                  {/* Product thumbnail */}
-                  <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                    {p.photo ? (
-                      <img src={p.photo} alt={p.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <PackageIcon className="w-5 h-5 text-muted-foreground/40" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold truncate">{p.name}</h3>
-                      <Badge variant="outline" className="text-[10px] shrink-0" style={{ borderColor: getCategoryColor(p.categoryId), color: getCategoryColor(p.categoryId) }}>
-                        {getCategoryName(p.categoryId)}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">SKU: {p.sku || '-'}</p>
-                    <div className="flex items-center gap-3 mt-1.5">
-                      <span className="text-sm font-bold text-primary">Rp {p.price.toLocaleString('id-ID')}</span>
-                      <span className="text-xs text-muted-foreground">HPP: Rp {p.hpp.toLocaleString('id-ID')}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={cn('text-xs font-medium px-1.5 py-0.5 rounded', p.stock <= 5 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success')}>
-                        Stok: {p.stock} {p.unit}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}>
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(p.id!)}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
