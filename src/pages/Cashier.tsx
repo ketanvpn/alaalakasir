@@ -485,13 +485,13 @@ export default function Kasir() {
         <Button
           variant="ghost"
           size="sm"
-          className="h-9 gap-1.5 text-xs relative"
+          className="h-9 gap-1.5 text-xs"
           onClick={() => setOpenBillsOpen(true)}
         >
           <ClipboardList className="w-4 h-4" />
           Open Bill
           {openBillsCount > 0 && (
-            <Badge className="absolute -top-1 -right-1 h-4 min-w-4 text-[9px] px-1 bg-destructive text-destructive-foreground">
+            <Badge className="h-4 min-w-4 rounded-full text-[9px] px-1 bg-destructive text-destructive-foreground">
               {openBillsCount}
             </Badge>
           )}
@@ -750,15 +750,15 @@ export default function Kasir() {
       {/* Cart Sheet (mobile only) */}
       <div className="md:hidden">
       <Sheet open={cartOpen} onOpenChange={(open) => { setCartOpen(open); if (!open) setEditingItemNotes(null); }}>
-        <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl max-w-lg mx-auto">
-          <SheetHeader>
+        <SheetContent side="bottom" className="h-[88dvh] rounded-t-2xl max-w-lg mx-auto p-4 pb-0 flex flex-col overflow-hidden">
+          <SheetHeader className="shrink-0 pr-8">
             <SheetTitle className="text-left">
               Keranjang ({cartCount} item)
               {editingTxId && <span className="text-xs font-normal text-muted-foreground ml-2">— edit open bill</span>}
             </SheetTitle>
           </SheetHeader>
-          <div className="flex flex-col h-full mt-4">
-            <div className="flex-1 overflow-y-auto space-y-3 pb-4">
+          <div className="flex min-h-0 flex-1 flex-col mt-4">
+            <div className="min-h-0 flex-1 overflow-y-auto space-y-3 pb-4">
               {cart.map(item => (
                 <div key={item.product.id} className="bg-muted/50 p-3 rounded-xl space-y-1.5">
                   <div className="flex items-center gap-3">
@@ -819,7 +819,7 @@ export default function Kasir() {
             </div>
 
             {/* Customer / Table quick inputs */}
-            <div className="flex gap-2 mb-2">
+            <div className="flex gap-2 mb-2 shrink-0">
               <div className="relative flex-1">
                 <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input
@@ -841,7 +841,7 @@ export default function Kasir() {
             </div>
 
             {/* Summary */}
-            <div className="border-t pt-4 space-y-3 pb-6">
+            <div className="border-t bg-background pt-4 space-y-3 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shrink-0">
               {txDiscountAmount > 0 ? (
                 <button
                   onClick={() => { setTempDiscountType(txDiscountType!); setTempDiscountValue(txDiscountValue); setDiscountDialogOpen(true); }}

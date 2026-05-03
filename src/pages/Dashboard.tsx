@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type TransactionItemRecord } from '@/lib/db';
 import { useState } from 'react';
-import { ShoppingCart, Package, BarChart3, TrendingUp, AlertTriangle, Receipt, ChevronRight, ClipboardList } from 'lucide-react';
+import { Package, TrendingUp, AlertTriangle, Receipt, ChevronRight, ClipboardList, ArrowDownToLine, ArrowUpFromLine, Truck } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -59,9 +59,10 @@ export default function Dashboard() {
   const showBackup = !backupDismissed && storeSettings && shouldShowBackupReminder(storeSettings.lastBackupAt);
 
   const quickActions = [
-    { to: '/cashier', icon: ShoppingCart, label: 'Kasir', color: 'bg-primary/10 text-primary' },
-    { to: '/products', icon: Package, label: 'Produk', color: 'bg-accent/10 text-accent' },
-    { to: '/reports', icon: BarChart3, label: 'Laporan', color: 'bg-success/10 text-success' },
+    { to: '/stock-in', icon: ArrowDownToLine, label: 'Stok Masuk', color: 'bg-success/10 text-success' },
+    { to: '/stock-out', icon: ArrowUpFromLine, label: 'Stok Keluar', color: 'bg-destructive/10 text-destructive' },
+    { to: '/supplier', icon: Truck, label: 'Supplier', color: 'bg-accent/10 text-accent' },
+    { to: '/history', icon: Receipt, label: 'Riwayat', color: 'bg-primary/10 text-primary' },
   ];
 
   return (
@@ -122,7 +123,7 @@ export default function Dashboard() {
       {/* Quick Actions */}
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground mb-3">Akses Cepat</h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {quickActions.map(({ to, icon: Icon, label, color }) => (
             <Link key={to} to={to}>
               <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
