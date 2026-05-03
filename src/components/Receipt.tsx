@@ -137,10 +137,7 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
 
         if (!deviceId) {
           toast.info('Pilih printer Bluetooth thermal 58mm...');
-          const device = await BluetoothLe.requestDevice({
-            services: [PRINTER_SERVICE_UUID],
-            optionalServices: [PRINTER_SERVICE_UUID],
-          });
+          const device = await BluetoothLe.requestDevice({});
           deviceId = device.deviceId;
           localStorage.setItem(PRINTER_DEVICE_ID_KEY, deviceId);
         }
@@ -148,18 +145,68 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
         toast.info('Menghubungkan printer Bluetooth...');
         await BluetoothLe.connect(deviceId);
 
+        let serviceUuid = PRINTER_SERVICE_UUID;
+        let characteristicUuid = PRINTER_CHARACTERISTIC_UUID;
+        let useWriteWithoutResponse = true;
+
+        try {
+          const services = (await BluetoothLe.getServices(deviceId)) as any[];
+          let selected: { service: string; characteristic: string; useWriteWithoutResponse: boolean } | null = null;
+
+          for (const service of services ?? []) {
+            for (const characteristic of service.characteristics ?? []) {
+              const p = characteristic.properties ?? {};
+              if (p.writeWithoutResponse) {
+                selected = {
+                  service: service.uuid,
+                  characteristic: characteristic.uuid,
+                  useWriteWithoutResponse: true,
+                };
+                break;
+              }
+              if (!selected && p.write) {
+                selected = {
+                  service: service.uuid,
+                  characteristic: characteristic.uuid,
+                  useWriteWithoutResponse: false,
+                };
+              }
+            }
+            if (selected?.useWriteWithoutResponse) break;
+          }
+
+          if (selected) {
+            serviceUuid = selected.service;
+            characteristicUuid = selected.characteristic;
+            useWriteWithoutResponse = selected.useWriteWithoutResponse;
+          }
+        } catch {
+          // fallback ke UUID default jika service discovery gagal
+        }
+
         const payload = buildEscPosPayload();
         for (let i = 0; i < payload.length; i += 180) {
           const chunk = payload.slice(i, i + 180);
-          await BluetoothLe.writeWithoutResponse(deviceId, PRINTER_SERVICE_UUID, PRINTER_CHARACTERISTIC_UUID, toDataView(chunk));
+          if (useWriteWithoutResponse) {
+            await BluetoothLe.writeWithoutResponse(deviceId, serviceUuid, characteristicUuid, toDataView(chunk));
+          } else {
+            await BluetoothLe.write(deviceId, serviceUuid, characteristicUuid, toDataView(chunk));
+          }
         }
 
         await BluetoothLe.disconnect(deviceId);
         toast.success('Struk berhasil dicetak ke printer Bluetooth!');
         return;
       } catch {
+        try {
+          const savedDeviceId = localStorage.getItem(PRINTER_DEVICE_ID_KEY);
+          if (savedDeviceId) await BluetoothLe.disconnect(savedDeviceId);
+        } catch {
+          // ignore
+        }
         localStorage.removeItem(PRINTER_DEVICE_ID_KEY);
-        toast.error('Gagal cetak Bluetooth native. Coba pairing ulang printer lalu cetak lagi.');
+        toast.error('Gagal cetak Bluetooth native. Pastikan printer BLE aktif dan coba pilih ulang printer.');
+        return;
       }
     }
 

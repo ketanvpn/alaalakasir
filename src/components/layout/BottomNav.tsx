@@ -18,6 +18,7 @@ export default function BottomNav() {
           <NavLink
             key={to}
             to={to}
+            replace
             end={to === '/'}
             className={({ isActive }) =>
               cn(
