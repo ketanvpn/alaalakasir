@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type TransactionItemRecord } from '@/lib/db';
 import { useState } from 'react';
-import { Package, TrendingUp, AlertTriangle, Receipt, ChevronRight, ClipboardList, ArrowDownToLine, ArrowUpFromLine, Truck } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Receipt, ChevronRight, ClipboardList, ArrowDownToLine, ArrowUpFromLine, Truck, ShoppingCart, Package } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -9,13 +9,31 @@ import { id } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import BackupReminder, { shouldShowBackupReminder, exportBackupData } from '@/components/BackupReminder';
 
+const startOfDay = (date: Date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const formatRelativeTime = (date: Date) => {
+  const diffMs = Date.now() - date.getTime();
+  const diffMin = Math.max(0, Math.floor(diffMs / 60000));
+  if (diffMin < 1) return 'baru saja';
+  if (diffMin < 60) return `${diffMin} menit lalu`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour} jam lalu`;
+  const diffDay = Math.floor(diffHour / 24);
+  return `${diffDay} hari lalu`;
+};
+
 export default function Dashboard() {
   const [backupDismissed, setBackupDismissed] = useState(false);
 
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = startOfDay(new Date());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
 
   const todayTransactions = useLiveQuery(async () => {
     const all = await db.transactions.where('date').aboveOrEqual(today).toArray();
@@ -49,20 +67,35 @@ export default function Dashboard() {
 
   const paymentMethods = useLiveQuery(() => db.paymentMethods.toArray());
 
+  const yesterdayTransactions = useLiveQuery(async () => {
+    const all = await db.transactions.where('date').between(yesterday, today, true, false).toArray();
+    return all.filter(t => t.status !== 'open');
+  }, [today.getTime()]);
+
   // Show onboarding if not done yet
   if (storeSettings === undefined) return null; // loading
 
   const totalSales = todayTransactions?.reduce((sum, t) => sum + t.total, 0) ?? 0;
   const totalProfit = todayTransactions?.reduce((sum, t) => sum + t.profit, 0) ?? 0;
   const txCount = todayTransactions?.length ?? 0;
+  const yesterdaySales = yesterdayTransactions?.reduce((sum, t) => sum + t.total, 0) ?? 0;
+
+  const salesDeltaPercent =
+    yesterdaySales > 0
+      ? Math.round(((totalSales - yesterdaySales) / yesterdaySales) * 100)
+      : totalSales > 0
+        ? 100
+        : 0;
 
   const showBackup = !backupDismissed && storeSettings && shouldShowBackupReminder(storeSettings.lastBackupAt);
 
   const quickActions = [
+    { to: '/cashier', icon: ShoppingCart, label: 'Kasir', color: 'bg-primary/10 text-primary' },
+    { to: '/products', icon: Package, label: 'Produk', color: 'bg-accent/10 text-accent' },
     { to: '/stock-in', icon: ArrowDownToLine, label: 'Stok Masuk', color: 'bg-success/10 text-success' },
+    { to: '/history', icon: Receipt, label: 'Riwayat', color: 'bg-secondary text-secondary-foreground' },
     { to: '/stock-out', icon: ArrowUpFromLine, label: 'Stok Keluar', color: 'bg-destructive/10 text-destructive' },
-    { to: '/supplier', icon: Truck, label: 'Supplier', color: 'bg-accent/10 text-accent' },
-    { to: '/history', icon: Receipt, label: 'Riwayat', color: 'bg-primary/10 text-primary' },
+    { to: '/supplier', icon: Truck, label: 'Supplier', color: 'bg-muted text-foreground' },
   ];
 
   return (
@@ -82,30 +115,10 @@ export default function Dashboard() {
         />
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="border-0 shadow-sm bg-primary text-primary-foreground">
-          <CardContent className="p-4">
-            <p className="text-xs opacity-80">Penjualan Hari Ini</p>
-            <p className="text-xl font-bold mt-1">Rp {totalSales.toLocaleString('id-ID')}</p>
-            <p className="text-xs opacity-70 mt-1">{txCount} transaksi</p>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-1.5 text-success">
-              <TrendingUp className="w-4 h-4" />
-              <p className="text-xs font-medium">Profit Hari Ini</p>
-            </div>
-            <p className="text-xl font-bold mt-1">Rp {totalProfit.toLocaleString('id-ID')}</p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Open Bills */}
       {openBillsCount != null && openBillsCount > 0 && (
         <Link to="/cashier?openBills=1">
-          <Card className="border-0 shadow-sm bg-warning/10 hover:shadow-md transition-shadow cursor-pointer mt-2">
+          <Card className="border-0 shadow-sm bg-warning/10 hover:shadow-md transition-shadow cursor-pointer">
             <CardContent className="p-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-warning/20 text-warning flex items-center justify-center shrink-0">
                 <ClipboardList className="w-5 h-5" />
@@ -120,10 +133,36 @@ export default function Dashboard() {
         </Link>
       )}
 
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Card className="border-0 shadow-sm bg-primary text-primary-foreground sm:col-span-2">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs opacity-80">Penjualan Hari Ini</p>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-primary-foreground/15 text-primary-foreground">
+                {salesDeltaPercent >= 0 ? '+' : ''}{salesDeltaPercent}% vs kemarin
+              </span>
+            </div>
+            <p className="text-xl font-bold mt-1">Rp {totalSales.toLocaleString('id-ID')}</p>
+            <p className="text-xs opacity-70 mt-1">{txCount} transaksi selesai</p>
+          </CardContent>
+        </Card>
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-1.5 text-success mb-1">
+              <TrendingUp className="w-4 h-4" />
+              <p className="text-xs font-medium">Laba Kotor</p>
+            </div>
+            <p className="text-lg font-bold">Rp {totalProfit.toLocaleString('id-ID')}</p>
+            <p className="text-xs text-muted-foreground mt-1">Hari ini</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Quick Actions */}
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground mb-3">Akses Cepat</h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
           {quickActions.map(({ to, icon: Icon, label, color }) => (
             <Link key={to} to={to}>
               <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
@@ -162,9 +201,9 @@ export default function Dashboard() {
                       <Receipt className="w-4 h-4" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-muted-foreground truncate">{(recentTxItems?.[tx.id!] ?? []).map(i => i.productName).join(', ')}</p>
-                        <p className="text-[10px] text-muted-foreground shrink-0 ml-2">{format(new Date(tx.date), 'HH:mm')}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground truncate">{(recentTxItems?.[tx.id!] ?? []).map(i => i.productName).join(', ') || 'Tanpa item'}</p>
+                        <p className="text-xs text-muted-foreground shrink-0 ml-2">{formatRelativeTime(new Date(tx.date))}</p>
                       </div>
                       <div className="flex items-center justify-between mt-0.5">
                         <p className="text-sm font-bold text-primary">Rp {tx.total.toLocaleString('id-ID')}</p>

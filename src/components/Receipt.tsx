@@ -4,6 +4,7 @@ import { id } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import { Capacitor } from '@capacitor/core';
 import { BluetoothLe } from '@capacitor-community/bluetooth-le';
+import { BluetoothSerial } from '@e-is/capacitor-bluetooth-serial';
 import { Download, Share2, Printer, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -22,6 +23,7 @@ interface ReceiptProps {
 const PRINTER_SERVICE_UUID = '000018f0-0000-1000-8000-00805f9b34fb';
 const PRINTER_CHARACTERISTIC_UUID = '00002af1-0000-1000-8000-00805f9b34fb';
 const PRINTER_DEVICE_ID_KEY = 'alaalakasir_ble_printer_device_id';
+const PRINTER_SERIAL_ADDRESS_KEY = 'alaalakasir_bt_serial_address';
 
 export default function Receipt({ open, onClose, transaction, items, storeSettings, paymentMethodName }: ReceiptProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -86,8 +88,7 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
   };
 
   const handleBluetoothPrint = async () => {
-    const buildEscPosPayload = () => {
-      const encoder = new TextEncoder();
+    const buildEscPosText = () => {
       const lines: string[] = [];
 
       lines.push('\x1B\x61\x01');
@@ -118,13 +119,51 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
       lines.push('--------------------------------\n');
       lines.push('\x1B\x61\x01');
       lines.push(`${storeSettings?.receiptFooter || 'Terima kasih!'}\n\n\n`);
-      return encoder.encode(lines.join(''));
+      return lines.join('');
     };
+
+    const buildEscPosPayload = () => new TextEncoder().encode(buildEscPosText());
 
     const toDataView = (bytes: Uint8Array) => new DataView(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
 
     const isAndroidNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
     if (isAndroidNative) {
+      try {
+        await BluetoothSerial.enable();
+
+        let address = localStorage.getItem(PRINTER_SERIAL_ADDRESS_KEY) || '';
+        if (!address) {
+          toast.info('Mencari printer thermal Bluetooth...');
+          const scanResult = await BluetoothSerial.scan();
+          const devices = (scanResult as any)?.devices ?? [];
+
+          if (!devices.length) {
+            throw new Error('NO_CLASSIC_BT_DEVICE');
+          }
+
+          const preferred = devices.find((d: any) => {
+            const name = String(d?.name || '').toLowerCase();
+            return name.includes('rpp') || name.includes('printer') || name.includes('pos') || name.includes('58');
+          });
+          const selected = preferred ?? devices[0];
+          address = selected.address || selected.id;
+
+          if (!address) {
+            throw new Error('INVALID_CLASSIC_BT_ADDRESS');
+          }
+          localStorage.setItem(PRINTER_SERIAL_ADDRESS_KEY, address);
+        }
+
+        toast.info('Menghubungkan printer Bluetooth thermal...');
+        await BluetoothSerial.connect({ address });
+        await BluetoothSerial.write({ address, value: buildEscPosText() });
+        await BluetoothSerial.disconnect({ address });
+        toast.success('Struk berhasil dicetak ke printer Bluetooth!');
+        return;
+      } catch {
+        localStorage.removeItem(PRINTER_SERIAL_ADDRESS_KEY);
+      }
+
       try {
         await BluetoothLe.initialize();
         try {
