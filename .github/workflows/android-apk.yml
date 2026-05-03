@@ -107,7 +107,8 @@ jobs:
           ANDROID_VERSION_NAME: ${{ steps.android_version.outputs.version_name }}
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleRelease --stacktrace --info
+          ./gradlew assembleRelease --stacktrace --info 2>&1 | tee ../android-gradle-build.log
+          exit ${PIPESTATUS[0]}
 
       - name: Upload Android build reports on failure
         if: ${{ failure() }}
@@ -115,6 +116,7 @@ jobs:
         with:
           name: android-build-reports
           path: |
+            android-gradle-build.log
             android/build/reports/**
             android/app/build/reports/**
           if-no-files-found: ignore
