@@ -130,7 +130,7 @@ Untuk update APK tanpa uninstall, APK harus ditandatangani dengan keystore yang 
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
-Jika secrets belum ada, workflow akan membuat debug APK. Debug APK bisa dipakai untuk tes, tetapi tanda tangannya bisa berbeda antar build sehingga Android dapat menolak instalasi update di atas APK lama.
+Jika secrets belum ada, workflow APK akan gagal dengan pesan konfigurasi signing. Ini disengaja agar release tidak lagi diam-diam berisi debug APK yang tidak bisa dipakai untuk update stabil.
 
 ---
 
