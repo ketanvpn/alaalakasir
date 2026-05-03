@@ -138,5 +138,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}
         run: |
-          gh release view "$RELEASE_TAG" || gh release create "$RELEASE_TAG" --title "AlaalaKasir $RELEASE_TAG" --notes "Android release APK build."
-          gh release upload "$RELEASE_TAG" alaalakasir-*.apk --clobber
+          RAW_TAG="$RELEASE_TAG"
+          CLEAN_TAG="$(printf '%s' "$RAW_TAG" | tr -d '\r' | xargs)"
+          CLEAN_TAG="${CLEAN_TAG#refs/tags/}"
+          CLEAN_TAG="${CLEAN_TAG#\"}"
+          CLEAN_TAG="${CLEAN_TAG%\"}"
+          CLEAN_TAG="${CLEAN_TAG#\'}"
+          CLEAN_TAG="${CLEAN_TAG%\'}"
+
+          if [[ ! "$CLEAN_TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z]+)*$ ]]; then
+            echo "Invalid release tag: '$RAW_TAG'"
+            echo "Use a valid tag like v0.4.2 (without quotes/spaces)."
+            exit 1
+          fi
+
+          gh release view "$CLEAN_TAG" || gh release create "$CLEAN_TAG" --title "AlaalaKasir $CLEAN_TAG" --notes "Android release APK build."
+          gh release upload "$CLEAN_TAG" alaalakasir-*.apk --clobber
