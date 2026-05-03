@@ -2,7 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
+import { App as CapacitorApp } from "@capacitor/app";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Cashier from "./pages/Cashier";
@@ -19,6 +22,35 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => {
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "android") return;
+
+    let removeListener: (() => void) | undefined;
+
+    const setupBackButtonHandler = async () => {
+      const listener = await CapacitorApp.addListener("backButton", ({ canGoBack }) => {
+        if (canGoBack) {
+          window.history.back();
+          return;
+        }
+
+        const shouldExit = window.confirm("Keluar dari aplikasi AlaalaKasir?");
+        if (shouldExit) {
+          CapacitorApp.exitApp();
+        }
+      });
+      removeListener = () => {
+        listener.remove();
+      };
+    };
+
+    setupBackButtonHandler();
+
+    return () => {
+      if (removeListener) removeListener();
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

@@ -81,7 +81,41 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
 
   const handleBluetoothPrint = async () => {
     if (!('bluetooth' in navigator)) {
-      toast.error('Bluetooth tidak tersedia di browser ini. Gunakan Chrome di Android.');
+      const canvas = await captureReceipt();
+      if (!canvas) return;
+      const dataUrl = canvas.toDataURL('image/png');
+      const printWindow = window.open('', '_blank', 'width=420,height=760');
+      if (!printWindow) {
+        toast.error('Tidak bisa membuka jendela cetak. Izinkan pop-up browser.');
+        return;
+      }
+
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Cetak Struk</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <style>
+              body { margin: 0; padding: 12px; background: #fff; font-family: sans-serif; display: flex; justify-content: center; }
+              img { width: 280px; max-width: 100%; height: auto; image-rendering: crisp-edges; }
+              @media print {
+                body { padding: 0; }
+              }
+            </style>
+          </head>
+          <body>
+            <img src="${dataUrl}" alt="Struk" />
+            <script>
+              window.onload = function () {
+                window.print();
+                setTimeout(function () { window.close(); }, 300);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      toast.success('Membuka dialog cetak browser...');
       return;
     }
 
