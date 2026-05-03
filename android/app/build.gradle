@@ -7,6 +7,7 @@ def envKeystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
 def envKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
 def envKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
 def hasReleaseSigning = envKeystorePath && envKeystorePassword && envKeyAlias && envKeyPassword
+def resolvedKeystorePath = envKeystorePath ? (envKeystorePath.startsWith("app/") ? envKeystorePath.substring(4) : envKeystorePath) : null
 
 android {
     namespace = "id.alaalakasir.app"
@@ -27,7 +28,7 @@ android {
     signingConfigs {
         release {
             if (hasReleaseSigning) {
-                storeFile file(envKeystorePath)
+                storeFile file(resolvedKeystorePath)
                 storePassword envKeystorePassword
                 keyAlias envKeyAlias
                 keyPassword envKeyPassword

@@ -102,7 +102,7 @@ jobs:
       - name: Build signed release APK
         working-directory: android
         env:
-          ANDROID_KEYSTORE_PATH: app/alaalakasir-release.jks
+          ANDROID_KEYSTORE_PATH: alaalakasir-release.jks
           ANDROID_VERSION_CODE: ${{ steps.android_version.outputs.version_code }}
           ANDROID_VERSION_NAME: ${{ steps.android_version.outputs.version_name }}
         run: |
