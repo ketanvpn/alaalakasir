@@ -92,7 +92,17 @@ jobs:
           ANDROID_VERSION_NAME: ${{ steps.android_version.outputs.version_name }}
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --stacktrace --info
+
+      - name: Upload Android build reports on failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-reports
+          path: |
+            android/build/reports/**
+            android/app/build/reports/**
+          if-no-files-found: ignore
 
       - name: Rename APK
         run: |
@@ -111,5 +121,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}
         run: |
-          gh release view "$RELEASE_TAG" || gh release create "$RELEASE_TAG" --title "AlaalaKasir $RELEASE_TAG" --notes "Android debug APK build."
+          gh release view "$RELEASE_TAG" || gh release create "$RELEASE_TAG" --title "AlaalaKasir $RELEASE_TAG" --notes "Android release APK build."
           gh release upload "$RELEASE_TAG" alaalakasir-*.apk --clobber
