@@ -84,38 +84,57 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
       const canvas = await captureReceipt();
       if (!canvas) return;
       const dataUrl = canvas.toDataURL('image/png');
-      const printWindow = window.open('', '_blank', 'width=420,height=760');
-      if (!printWindow) {
-        toast.error('Tidak bisa membuka jendela cetak. Izinkan pop-up browser.');
+      const frameName = 'receipt-print-frame';
+      let frame = document.getElementById(frameName) as HTMLIFrameElement | null;
+
+      if (!frame) {
+        frame = document.createElement('iframe');
+        frame.id = frameName;
+        frame.style.position = 'fixed';
+        frame.style.right = '0';
+        frame.style.bottom = '0';
+        frame.style.width = '0';
+        frame.style.height = '0';
+        frame.style.border = '0';
+        frame.style.visibility = 'hidden';
+        document.body.appendChild(frame);
+      }
+
+      const doc = frame.contentWindow?.document;
+      if (!doc) {
+        toast.error('Gagal membuka mode cetak di perangkat ini.');
         return;
       }
 
-      printWindow.document.write(`
+      doc.open();
+      doc.write(`
         <html>
           <head>
             <title>Cetak Struk</title>
             <meta name="viewport" content="width=device-width, initial-scale=1" />
             <style>
-              body { margin: 0; padding: 12px; background: #fff; font-family: sans-serif; display: flex; justify-content: center; }
-              img { width: 280px; max-width: 100%; height: auto; image-rendering: crisp-edges; }
+              html, body { margin: 0; padding: 0; background: #fff; }
+              .wrap { display: flex; justify-content: center; padding: 12px; }
+              img { width: 280px; max-width: 100%; height: auto; }
               @media print {
-                body { padding: 0; }
+                .wrap { padding: 0; }
+                img { width: 280px; }
               }
             </style>
           </head>
           <body>
-            <img src="${dataUrl}" alt="Struk" />
-            <script>
-              window.onload = function () {
-                window.print();
-                setTimeout(function () { window.close(); }, 300);
-              };
-            </script>
+            <div class="wrap"><img src="${dataUrl}" alt="Struk" /></div>
           </body>
         </html>
       `);
-      printWindow.document.close();
-      toast.success('Membuka dialog cetak browser...');
+      doc.close();
+
+      frame.contentWindow?.focus();
+      setTimeout(() => {
+        frame?.contentWindow?.print();
+      }, 150);
+
+      toast.success('Membuka dialog cetak...');
       return;
     }
 
