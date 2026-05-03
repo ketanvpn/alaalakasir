@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { exportBackupData } from '@/components/BackupReminder';
 import { compressImage } from '@/lib/image-utils';
+import { CURRENT_APP_VERSION, GITHUB_RELEASES_URL, checkForAppUpdate, type AppUpdateInfo } from '@/lib/update-check';
 
 export default function Pengaturan() {
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
@@ -42,6 +43,8 @@ export default function Pengaturan() {
 
   // Storage info (CR-9)
   const [storageUsage, setStorageUsage] = useState<{ usage: number; quota: number } | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<AppUpdateInfo | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   useEffect(() => {
     if (navigator.storage?.estimate) {
       navigator.storage.estimate().then(est => {
@@ -219,6 +222,25 @@ export default function Pengaturan() {
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   };
 
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true);
+    try {
+      const info = await checkForAppUpdate();
+      setUpdateInfo(info);
+      if (info.updateAvailable) {
+        toast.info(`Versi baru tersedia: ${info.latestVersion}`);
+      } else if (info.latestVersion) {
+        toast.success('Aplikasi sudah versi terbaru');
+      } else {
+        toast.info('Belum ada tag versi di GitHub');
+      }
+    } catch {
+      toast.error('Gagal mengecek update. Coba lagi saat online.');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
   return (
     <div className="px-4 pt-6 pb-4 space-y-5">
       <h1 className="text-xl font-bold flex items-center gap-2">
@@ -378,7 +400,33 @@ export default function Pengaturan() {
         <CardContent className="p-4 text-center space-y-2">
            <p className="text-sm font-bold">AlaalaKasir</p>
            <p className="text-xs text-muted-foreground">POS Gratis untuk UMKM Indonesia 🇮🇩</p>
-           <p className="text-[10px] text-muted-foreground">v1.0 • Data tersimpan di perangkat</p>
+           <p className="text-[10px] text-muted-foreground">v{CURRENT_APP_VERSION.replace(/^v/i, '')} • Data tersimpan di perangkat</p>
+
+           <div className="rounded-lg border bg-muted/40 p-3 text-left space-y-2">
+             <div className="flex items-center justify-between gap-3">
+               <div>
+                 <p className="text-xs font-semibold">Update Aplikasi</p>
+                 <p className="text-[10px] text-muted-foreground">
+                   {updateInfo?.latestVersion
+                     ? `Versi GitHub terbaru: ${updateInfo.latestVersion}`
+                     : 'Cek versi terbaru dari tag GitHub'}
+                 </p>
+               </div>
+               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleCheckUpdate} disabled={checkingUpdate}>
+                 {checkingUpdate ? 'Mengecek...' : 'Cek Update'}
+               </Button>
+             </div>
+             {updateInfo?.updateAvailable && (
+               <a
+                 href={GITHUB_RELEASES_URL}
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 className="block text-xs font-semibold text-primary hover:underline"
+               >
+                 Download versi terbaru
+               </a>
+             )}
+           </div>
 
            {/* Links */}
            <div className="flex flex-col gap-2 pt-2">

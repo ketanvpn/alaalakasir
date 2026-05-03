@@ -97,6 +97,19 @@ npm run build
 npm run preview
 ```
 
+### Version Tags
+
+Aplikasi menampilkan versi dari build-time variable `VITE_APP_VERSION`. Jika tidak diisi, versi akan mengikuti `package.json`.
+
+Untuk rilis dari GitHub tag, gunakan format semantic version:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Saat build berjalan dari tag GitHub, workflow CI mengisi `VITE_APP_VERSION` dari nama tag. Menu Pengaturan dapat mengecek tag terbaru di repository GitHub tanpa mengirim data toko atau transaksi.
+
 ---
 
 ## 📁 Project Structure
