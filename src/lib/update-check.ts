@@ -17,6 +17,18 @@ interface GitHubRelease {
   assets: GitHubReleaseAsset[];
 }
 
+function selectApkAsset(assets: GitHubReleaseAsset[]): GitHubReleaseAsset | null {
+  const apkAssets = assets.filter(asset => asset.name.toLowerCase().endsWith('.apk'));
+  if (apkAssets.length === 0) return null;
+
+  const preferredAsset = apkAssets.find(asset => {
+    const name = asset.name.toLowerCase();
+    return name.includes('release') && !name.includes('unsigned');
+  });
+
+  return preferredAsset ?? apkAssets[0];
+}
+
 export interface AppUpdateInfo {
   currentVersion: string;
   latestVersion: string | null;
@@ -60,7 +72,7 @@ export async function checkForAppUpdate(): Promise<AppUpdateInfo> {
 
   if (latestReleaseResponse.ok) {
     const release = (await latestReleaseResponse.json()) as GitHubRelease;
-    const apkAsset = release.assets.find(asset => asset.name.endsWith('.apk'));
+    const apkAsset = selectApkAsset(release.assets);
 
     return {
       currentVersion: CURRENT_APP_VERSION,
@@ -84,7 +96,7 @@ export async function checkForAppUpdate(): Promise<AppUpdateInfo> {
   }
 
   const tags = (await response.json()) as GitHubTag[];
-  const latestTag = tags.find(tag => /^v?\d+\.\d+\.\d+/.test(tag.name));
+  const latestTag = tags.find(tag => /^v?\d+\.\d+\.\d+$/.test(tag.name));
   const latestVersion = latestTag?.name ?? null;
 
   return {
