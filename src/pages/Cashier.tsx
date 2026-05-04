@@ -505,7 +505,7 @@ export default function Kasir() {
   const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`;
 
   return (
-    <div className="px-4 pt-6 pb-4 h-[calc(100vh-4rem)]">
+    <div className="px-4 pt-6 pb-4 h-[calc(100dvh-4rem)]">
       <div className="flex flex-col md:flex-row gap-0 md:gap-4 h-full">
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           {/* Header */}

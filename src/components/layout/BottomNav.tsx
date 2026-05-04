@@ -1,6 +1,7 @@
 import { Home, Package, BarChart3, Settings, ShoppingCart } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useEffect, useState } from 'react';
 
 const navItems = [
   { to: '/', icon: Home, label: 'Beranda' },
@@ -11,8 +12,32 @@ const navItems = [
 ];
 
 export default function BottomNav() {
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const updateKeyboardState = () => {
+      const heightDiff = window.innerHeight - viewport.height;
+      setKeyboardOpen(heightDiff > 140);
+    };
+
+    updateKeyboardState();
+    viewport.addEventListener('resize', updateKeyboardState);
+    window.addEventListener('resize', updateKeyboardState);
+
+    return () => {
+      viewport.removeEventListener('resize', updateKeyboardState);
+      window.removeEventListener('resize', updateKeyboardState);
+    };
+  }, []);
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)]">
+    <nav className={cn(
+      'fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)] transition-transform duration-150',
+      keyboardOpen && 'translate-y-full'
+    )}>
       <div className="flex items-end justify-around h-16 max-w-lg md:max-w-6xl mx-auto px-2 md:px-4">
         {navItems.map(({ to, icon: Icon, label, isCta }) => (
           <NavLink
