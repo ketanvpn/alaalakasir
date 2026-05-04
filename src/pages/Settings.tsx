@@ -59,6 +59,7 @@ export default function Pengaturan() {
   const [updateProgress, setUpdateProgress] = useState(0);
   const [downloadedApkUri, setDownloadedApkUri] = useState<string | null>(null);
   const [downloadedApkName, setDownloadedApkName] = useState<string | null>(null);
+  const [updateInstallDialog, setUpdateInstallDialog] = useState(false);
   const [supportQrisDialog, setSupportQrisDialog] = useState(false);
   useEffect(() => {
     if (navigator.storage?.estimate) {
@@ -316,7 +317,8 @@ export default function Pengaturan() {
       const fileNameFromUrl = updateInfo.apkUrl.split('/').pop() || 'alaalakasir-latest.apk';
       setDownloadedApkUri(apkUri.uri);
       setDownloadedApkName(fileNameFromUrl);
-      toast.success('Download selesai. Lanjutkan: Install via File Manager (disarankan).');
+      setUpdateInstallDialog(true);
+      toast.success('Update siap dipasang. File update sudah tersimpan di HP Anda.');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Gagal mengunduh update aplikasi';
       toast.error(message);
@@ -338,9 +340,9 @@ export default function Pengaturan() {
         path: downloadedApkUri,
         mimeType: 'application/vnd.android.package-archive',
       });
-      toast.info('Pilih "Installer paket" lalu tekan "Sekali".');
+      toast.info('Jika tidak muncul proses instal, kembali lalu pilih "Coba Cara Lain".');
     } catch {
-      toast.error('Installer tidak terbuka. Buka izin instal aplikasi tidak dikenal terlebih dahulu.');
+      toast.error('Belum bisa membuka file update. Buka izin instal dulu.');
       await handleOpenInstallPermissionSettings();
     }
   };
@@ -354,11 +356,11 @@ export default function Pengaturan() {
     try {
       await Share.share({
         title: 'Buka APK Update AlaalaKasir',
-        text: 'Pilih File Manager/Explorer, lalu install APK dari sana.',
+        text: 'Pilih aplikasi File Manager, lalu install file APK update.',
         url: downloadedApkUri,
         dialogTitle: 'Pilih aplikasi pembuka APK',
       });
-      toast.info('Pilih File Manager/Explorer dulu, lalu install APK dari sana.');
+      toast.info('Pilih File Manager, lalu tekan Install pada file APK.');
     } catch {
       toast.error('Gagal membuka opsi alternatif instal APK.');
     }
@@ -370,7 +372,7 @@ export default function Pengaturan() {
         optionAndroid: AndroidSettings.ApplicationDetails,
         optionIOS: IOSSettings.App,
       });
-      toast.info('Buka izin aplikasi lalu aktifkan: Instal aplikasi tidak dikenal.');
+      toast.info('Aktifkan izin install dari aplikasi ini, lalu kembali ke AlaalaKasir.');
     } catch {
       toast.error('Gagal membuka pengaturan izin aplikasi.');
     }
@@ -553,9 +555,9 @@ export default function Pengaturan() {
              <div className="flex items-center justify-between gap-3">
                <div>
                  <p className="text-xs font-semibold">Update Aplikasi</p>
-                 <p className="text-[10px] text-muted-foreground">
+                  <p className="text-[10px] text-muted-foreground">
                     {updateInfo?.latestVersion
-                      ? `Versi terbaru: ${updateInfo.latestVersion}`
+                      ? `Versi baru tersedia: ${updateInfo.latestVersion}`
                       : 'Cek apakah ada versi aplikasi terbaru'}
                   </p>
                 </div>
@@ -573,7 +575,7 @@ export default function Pengaturan() {
                     onClick={handleDownloadAndInstallUpdate}
                     disabled={downloadingUpdate}
                   >
-                    {downloadingUpdate ? `Mengunduh... ${updateProgress}%` : 'Download & Install'}
+                    {downloadingUpdate ? `Sedang menyiapkan update... ${updateProgress}%` : 'Update Sekarang'}
                   </Button>
                   {downloadedApkUri && (
                     <div className="space-y-1.5">
@@ -584,7 +586,7 @@ export default function Pengaturan() {
                         className="h-8 text-xs"
                         onClick={handleInstallViaFileManager}
                       >
-                        Install Sekarang (via File Manager)
+                        Buka File Manager
                       </Button>
                       <Button
                         type="button"
@@ -593,15 +595,15 @@ export default function Pengaturan() {
                         className="h-8 text-xs"
                         onClick={handleInstallDownloadedApkDirect}
                       >
-                        Coba Installer Paket Langsung (opsional)
+                        Coba Cara Lain
                       </Button>
                       <p className="text-[10px] text-muted-foreground">
-                        APK siap diinstal: {downloadedApkName ?? 'alaalakasir-latest.apk'}
+                        Update siap dipasang: {downloadedApkName ?? 'alaalakasir-latest.apk'}
                       </p>
                     </div>
                   )}
                   <p className="text-[10px] text-muted-foreground">
-                    Alur disarankan: Install via File Manager - pilih APK - Install. Jika gagal, coba Installer Paket Langsung.
+                    Alur disarankan: Buka File Manager - pilih APK - Install.
                   </p>
                   <Button
                     type="button"
@@ -619,7 +621,7 @@ export default function Pengaturan() {
                     className="h-8 text-xs text-muted-foreground"
                     onClick={handleOpenInstallPermissionSettings}
                   >
-                    Buka Pengaturan Izin Instal
+                    Buka Pengaturan Izin
                   </Button>
                 </div>
               )}
@@ -690,6 +692,32 @@ export default function Pengaturan() {
           <p className="text-[11px] text-muted-foreground text-center">
             Scan QRIS ini dari aplikasi pembayaran kamu.
           </p>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={updateInstallDialog} onOpenChange={setUpdateInstallDialog}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md rounded-xl p-4">
+          <DialogHeader>
+            <DialogTitle>Update siap dipasang</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-xs text-muted-foreground">File update sudah tersimpan di HP Anda.</p>
+            <div className="rounded-lg border bg-muted/40 p-3 space-y-1.5 text-xs">
+              <p>1. Buka File Manager</p>
+              <p>2. Pilih file: {downloadedApkName ?? 'alaalakasir-latest.apk'}</p>
+              <p>3. Tekan Install</p>
+              <p>4. Jika diminta izin, aktifkan lalu kembali lagi</p>
+            </div>
+            <Button type="button" className="w-full h-9 text-xs" onClick={handleInstallViaFileManager}>
+              Buka File Manager
+            </Button>
+            <Button type="button" variant="outline" className="w-full h-9 text-xs" onClick={handleInstallDownloadedApkDirect}>
+              Coba Cara Lain
+            </Button>
+            <Button type="button" variant="ghost" className="w-full h-9 text-xs text-muted-foreground" onClick={handleOpenInstallPermissionSettings}>
+              Buka Pengaturan Izin
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
