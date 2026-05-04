@@ -6,6 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { FileOpener } from '@capawesome-team/capacitor-file-opener';
 import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings';
+import { Share } from '@capacitor/share';
 import ThemeColorPicker from '@/components/ThemeColorPicker';
 import { setThemeColor } from '@/hooks/use-theme-color';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,6 +58,7 @@ export default function Pengaturan() {
   const [downloadingUpdate, setDownloadingUpdate] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
   const [downloadedApkUri, setDownloadedApkUri] = useState<string | null>(null);
+  const [downloadedApkName, setDownloadedApkName] = useState<string | null>(null);
   const [supportQrisDialog, setSupportQrisDialog] = useState(false);
   useEffect(() => {
     if (navigator.storage?.estimate) {
@@ -269,6 +271,7 @@ export default function Pengaturan() {
     setDownloadingUpdate(true);
     setUpdateProgress(0);
     setDownloadedApkUri(null);
+    setDownloadedApkName(null);
     let progressListener: { remove: () => Promise<void> } | null = null;
 
     try {
@@ -301,7 +304,9 @@ export default function Pengaturan() {
       const apkUri = await Filesystem.getUri({ path: UPDATE_APK_PATH, directory: Directory.Cache });
       if (!apkUri.uri) throw new Error('File APK tidak ditemukan setelah download');
 
+      const fileNameFromUrl = updateInfo.apkUrl.split('/').pop() || 'alaalakasir-latest.apk';
       setDownloadedApkUri(apkUri.uri);
+      setDownloadedApkName(fileNameFromUrl);
       toast.success('Download selesai. Tekan "Install Sekarang" untuk melanjutkan.');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Gagal mengunduh update aplikasi';
@@ -328,6 +333,24 @@ export default function Pengaturan() {
     } catch {
       toast.error('Installer tidak terbuka. Buka izin instal aplikasi tidak dikenal terlebih dahulu.');
       await handleOpenInstallPermissionSettings();
+    }
+  };
+
+  const handleShareDownloadedApk = async () => {
+    if (!downloadedApkUri) {
+      toast.error('File update belum tersedia. Download dulu.');
+      return;
+    }
+
+    try {
+      await Share.share({
+        title: 'APK Update AlaalaKasir',
+        text: 'Buka file ini dengan Installer paket untuk memperbarui aplikasi.',
+        url: downloadedApkUri,
+        dialogTitle: 'Buka APK Update',
+      });
+    } catch {
+      toast.error('Gagal membuka opsi alternatif instal APK.');
     }
   };
 
@@ -531,15 +554,29 @@ export default function Pengaturan() {
                     {downloadingUpdate ? `Mengunduh... ${updateProgress}%` : 'Download & Install'}
                   </Button>
                   {downloadedApkUri && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs"
-                      onClick={handleInstallDownloadedApk}
-                    >
-                      Install Sekarang
-                    </Button>
+                    <div className="space-y-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={handleInstallDownloadedApk}
+                      >
+                        Install Sekarang
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs text-muted-foreground"
+                        onClick={handleShareDownloadedApk}
+                      >
+                        Opsi Alternatif (Bagikan APK)
+                      </Button>
+                      <p className="text-[10px] text-muted-foreground">
+                        APK siap diinstal: {downloadedApkName ?? 'alaalakasir-latest.apk'}
+                      </p>
+                    </div>
                   )}
                   <p className="text-[10px] text-muted-foreground">
                     Setelah download selesai, tekan Install Sekarang lalu pilih Installer paket.
