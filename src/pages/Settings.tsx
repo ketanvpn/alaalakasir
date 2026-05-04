@@ -316,7 +316,7 @@ export default function Pengaturan() {
       const fileNameFromUrl = updateInfo.apkUrl.split('/').pop() || 'alaalakasir-latest.apk';
       setDownloadedApkUri(apkUri.uri);
       setDownloadedApkName(fileNameFromUrl);
-      toast.success('Download selesai. Tekan "Install Sekarang" untuk melanjutkan.');
+      toast.success('Download selesai. Lanjutkan: Install via File Manager (disarankan).');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Gagal mengunduh update aplikasi';
       toast.error(message);
@@ -327,7 +327,7 @@ export default function Pengaturan() {
     }
   };
 
-  const handleInstallDownloadedApk = async () => {
+  const handleInstallDownloadedApkDirect = async () => {
     if (!downloadedApkUri) {
       toast.error('File update belum tersedia. Download dulu.');
       return;
@@ -345,7 +345,7 @@ export default function Pengaturan() {
     }
   };
 
-  const handleShareDownloadedApk = async () => {
+  const handleInstallViaFileManager = async () => {
     if (!downloadedApkUri) {
       toast.error('File update belum tersedia. Download dulu.');
       return;
@@ -353,11 +353,12 @@ export default function Pengaturan() {
 
     try {
       await Share.share({
-        title: 'APK Update AlaalaKasir',
-        text: 'Buka file ini dengan Installer paket untuk memperbarui aplikasi.',
+        title: 'Buka APK Update AlaalaKasir',
+        text: 'Pilih File Manager/Explorer, lalu install APK dari sana.',
         url: downloadedApkUri,
-        dialogTitle: 'Buka APK Update',
+        dialogTitle: 'Pilih aplikasi pembuka APK',
       });
+      toast.info('Pilih File Manager/Explorer dulu, lalu install APK dari sana.');
     } catch {
       toast.error('Gagal membuka opsi alternatif instal APK.');
     }
@@ -578,21 +579,21 @@ export default function Pengaturan() {
                     <div className="space-y-1.5">
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="default"
                         size="sm"
                         className="h-8 text-xs"
-                        onClick={handleInstallDownloadedApk}
+                        onClick={handleInstallViaFileManager}
                       >
-                        Install Sekarang
+                        Install Sekarang (via File Manager)
                       </Button>
                       <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="h-8 text-xs text-muted-foreground"
-                        onClick={handleShareDownloadedApk}
+                        className="h-8 text-xs"
+                        onClick={handleInstallDownloadedApkDirect}
                       >
-                        Opsi Alternatif (Bagikan APK)
+                        Coba Installer Paket Langsung (opsional)
                       </Button>
                       <p className="text-[10px] text-muted-foreground">
                         APK siap diinstal: {downloadedApkName ?? 'alaalakasir-latest.apk'}
@@ -600,7 +601,7 @@ export default function Pengaturan() {
                     </div>
                   )}
                   <p className="text-[10px] text-muted-foreground">
-                    Setelah download selesai, tekan Install Sekarang lalu pilih Installer paket.
+                    Alur disarankan: Install via File Manager - pilih APK - Install. Jika gagal, coba Installer Paket Langsung.
                   </p>
                   <Button
                     type="button"
