@@ -2,6 +2,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type PaymentMethod, type Category } from '@/lib/db';
 import { useState, useEffect, useRef } from 'react';
 import { Settings, Store, CreditCard, Tag, Download, Upload, Plus, Trash2, Edit2, Info, Truck, ArrowDownToLine, ArrowUpFromLine, ChevronRight, Receipt, Palette, HardDrive, Package, Camera, X } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+import { FileOpener } from '@capawesome-team/capacitor-file-opener';
 import ThemeColorPicker from '@/components/ThemeColorPicker';
 import { setThemeColor } from '@/hooks/use-theme-color';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,9 +17,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { exportBackupData } from '@/components/BackupReminder';
 import { compressImage } from '@/lib/image-utils';
-import { CURRENT_APP_VERSION, GITHUB_RELEASES_URL, checkForAppUpdate, type AppUpdateInfo } from '@/lib/update-check';
+import { CURRENT_APP_VERSION, checkForAppUpdate, type AppUpdateInfo } from '@/lib/update-check';
 
 const SUPPORT_QRIS_URL = '/support/qris-ketantech.png';
+const UPDATE_APK_PATH = 'updates/alaalakasir-latest.apk';
 
 export default function Pengaturan() {
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
@@ -47,6 +51,8 @@ export default function Pengaturan() {
   const [storageUsage, setStorageUsage] = useState<{ usage: number; quota: number } | null>(null);
   const [updateInfo, setUpdateInfo] = useState<AppUpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [downloadingUpdate, setDownloadingUpdate] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState(0);
   const [supportQrisDialog, setSupportQrisDialog] = useState(false);
   useEffect(() => {
     if (navigator.storage?.estimate) {
@@ -245,6 +251,60 @@ export default function Pengaturan() {
     }
   };
 
+  const handleDownloadAndInstallUpdate = async () => {
+    if (!updateInfo?.updateAvailable || !updateInfo.apkUrl) {
+      toast.error('Link APK versi terbaru belum tersedia');
+      return;
+    }
+
+    if (!(Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android')) {
+      window.open(updateInfo.apkUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    setDownloadingUpdate(true);
+    setUpdateProgress(0);
+    let progressListener: { remove: () => Promise<void> } | null = null;
+
+    try {
+      progressListener = await Filesystem.addListener('progress', (status) => {
+        const pct = status.contentLength > 0 ? Math.round((status.bytes / status.contentLength) * 100) : 0;
+        setUpdateProgress(Math.max(0, Math.min(100, pct)));
+      });
+
+      try {
+        await Filesystem.deleteFile({ path: UPDATE_APK_PATH, directory: Directory.Cache });
+      } catch {
+        // ignore if old file doesn't exist
+      }
+
+      toast.info('Mengunduh update aplikasi...');
+      await Filesystem.downloadFile({
+        url: updateInfo.apkUrl,
+        path: UPDATE_APK_PATH,
+        directory: Directory.Cache,
+        recursive: true,
+        progress: true,
+      });
+
+      const apkUri = await Filesystem.getUri({ path: UPDATE_APK_PATH, directory: Directory.Cache });
+      if (!apkUri.uri) throw new Error('File APK tidak ditemukan setelah download');
+
+      toast.success('Download selesai. Membuka installer...');
+      await FileOpener.openFile({
+        path: apkUri.uri,
+        mimeType: 'application/vnd.android.package-archive',
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gagal mengunduh update aplikasi';
+      toast.error(message);
+    } finally {
+      if (progressListener) await progressListener.remove();
+      setDownloadingUpdate(false);
+      setUpdateProgress(0);
+    }
+  };
+
   return (
     <div className="px-4 pt-6 pb-4 space-y-5">
       <h1 className="text-xl font-bold flex items-center gap-2">
@@ -411,26 +471,33 @@ export default function Pengaturan() {
                <div>
                  <p className="text-xs font-semibold">Update Aplikasi</p>
                  <p className="text-[10px] text-muted-foreground">
-                   {updateInfo?.latestVersion
-                     ? `Versi GitHub terbaru: ${updateInfo.latestVersion}`
-                     : 'Cek versi terbaru dari tag GitHub'}
-                 </p>
-               </div>
-               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleCheckUpdate} disabled={checkingUpdate}>
-                 {checkingUpdate ? 'Mengecek...' : 'Cek Update'}
-               </Button>
-             </div>
-             {updateInfo?.updateAvailable && (
-               <a
-                 href={updateInfo.apkUrl ?? updateInfo.releaseUrl}
-                 target="_blank"
-                 rel="noopener noreferrer"
-                 className="block text-xs font-semibold text-primary hover:underline"
-               >
-                 Download versi terbaru
-               </a>
-             )}
-           </div>
+                    {updateInfo?.latestVersion
+                      ? `Versi terbaru: ${updateInfo.latestVersion}`
+                      : 'Cek apakah ada versi aplikasi terbaru'}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleCheckUpdate} disabled={checkingUpdate}>
+                  {checkingUpdate ? 'Mengecek...' : 'Cek Update'}
+                </Button>
+              </div>
+              {updateInfo?.updateAvailable && (
+                <div className="space-y-1.5">
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={handleDownloadAndInstallUpdate}
+                    disabled={downloadingUpdate}
+                  >
+                    {downloadingUpdate ? `Mengunduh... ${updateProgress}%` : 'Download & Install'}
+                  </Button>
+                  <p className="text-[10px] text-muted-foreground">
+                    Setelah download selesai, installer Android akan terbuka otomatis.
+                  </p>
+                </div>
+              )}
+            </div>
 
            {/* Links */}
            <div className="flex flex-col gap-2 pt-2">
