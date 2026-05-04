@@ -29,6 +29,12 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
   const receiptRef = useRef<HTMLDivElement>(null);
   const [generating, setGenerating] = useState(false);
 
+  const resetSavedPrinter = () => {
+    localStorage.removeItem(PRINTER_SERIAL_ADDRESS_KEY);
+    localStorage.removeItem(PRINTER_DEVICE_ID_KEY);
+    toast.success('Printer tersimpan dihapus. Cetak berikutnya akan pilih printer lagi.');
+  };
+
   const captureReceipt = async (): Promise<HTMLCanvasElement | null> => {
     if (!receiptRef.current) return null;
     setGenerating(true);
@@ -92,11 +98,7 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
       const PAPER_WIDTH = 32;
       const hr = '-'.repeat(PAPER_WIDTH);
       const safe = (text: string) => (text || '').replace(/\s+/g, ' ').trim();
-      const lineCenter = (text: string) => {
-        const clean = safe(text);
-        const pad = Math.max(0, Math.floor((PAPER_WIDTH - clean.length) / 2));
-        return `${' '.repeat(pad)}${clean}\n`;
-      };
+      const lineCenter = (text: string) => `${safe(text)}\n`;
       const lineKV = (label: string, value: string) => {
         const l = safe(label);
         const v = safe(value);
@@ -112,6 +114,8 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
       const lines: string[] = [];
 
       lines.push('\x1B\x40');
+      lines.push('\x1D\x4C\x00\x00');
+      lines.push('\x1B\x33\x1E');
       lines.push('\x1B\x61\x01');
       lines.push(lineCenter(storeSettings?.storeName || 'Toko'));
       if (storeSettings?.address) lines.push(lineCenter(storeSettings.address));
@@ -462,6 +466,10 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
             <span className="text-[10px]">Cetak</span>
           </Button>
         </div>
+
+        <Button variant="ghost" className="w-full h-8 text-xs text-muted-foreground" onClick={resetSavedPrinter}>
+          Ganti Printer Bluetooth
+        </Button>
 
         <Button variant="secondary" className="w-full mt-1" onClick={onClose}>
           Selesai
