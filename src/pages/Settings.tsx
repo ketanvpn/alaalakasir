@@ -5,6 +5,7 @@ import { Settings, Store, CreditCard, Tag, Download, Upload, Plus, Trash2, Edit2
 import { Capacitor } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { FileOpener } from '@capawesome-team/capacitor-file-opener';
+import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings';
 import ThemeColorPicker from '@/components/ThemeColorPicker';
 import { setThemeColor } from '@/hooks/use-theme-color';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -307,6 +308,18 @@ export default function Pengaturan() {
     }
   };
 
+  const handleOpenInstallPermissionSettings = async () => {
+    try {
+      await NativeSettings.open({
+        optionAndroid: AndroidSettings.ApplicationDetails,
+        optionIOS: IOSSettings.App,
+      });
+      toast.info('Buka izin aplikasi lalu aktifkan: Instal aplikasi tidak dikenal.');
+    } catch {
+      toast.error('Gagal membuka pengaturan izin aplikasi.');
+    }
+  };
+
   return (
     <div className="px-4 pt-6 pb-4 space-y-5">
       <h1 className="text-xl font-bold flex items-center gap-2">
@@ -497,6 +510,15 @@ export default function Pengaturan() {
                   <p className="text-[10px] text-muted-foreground">
                     Setelah download selesai, installer Android akan terbuka otomatis.
                   </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs text-muted-foreground"
+                    onClick={handleOpenInstallPermissionSettings}
+                  >
+                    Buka Pengaturan Izin Instal
+                  </Button>
                 </div>
               )}
             </div>

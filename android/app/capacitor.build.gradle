@@ -15,6 +15,7 @@ dependencies {
     implementation project(':e-is-capacitor-bluetooth-serial')
     implementation project(':capacitor-filesystem')
     implementation project(':capacitor-share')
+    implementation project(':capacitor-native-settings')
 
 }
 
