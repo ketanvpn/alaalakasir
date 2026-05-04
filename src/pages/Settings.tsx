@@ -21,6 +21,8 @@ import { CURRENT_APP_VERSION, checkForAppUpdate, type AppUpdateInfo } from '@/li
 
 const SUPPORT_QRIS_URL = '/support/qris-ketantech.png';
 const UPDATE_APK_PATH = 'updates/alaalakasir-latest.apk';
+const BUG_REPORT_URL = 'https://github.com/ketanvpn/alaalakasir/issues/new?template=bug_report.md&title=Bug%20v'+CURRENT_APP_VERSION.replace(/^v/i, '')+'%20-%20';
+const FEATURE_REQUEST_URL = 'https://github.com/ketanvpn/alaalakasir/issues/new?template=feature_request.md&title=Fitur%20Baru%20-%20';
 
 export default function Pengaturan() {
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
@@ -499,23 +501,34 @@ export default function Pengaturan() {
               )}
             </div>
 
-           {/* Links */}
-           <div className="flex flex-col gap-2 pt-2">
-             <a
-                href="https://github.com/ketanvpn/alaalakasir/issues"
-               target="_blank"
-               rel="noopener noreferrer"
-               className="flex items-center justify-center gap-2 w-full h-9 rounded-lg border border-border bg-muted/50 text-xs font-semibold text-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-colors"
-             >
-               💡 Request Fitur
-             </a>
-              <button
-                type="button"
-                onClick={() => setSupportQrisDialog(true)}
-                className="flex items-center justify-center gap-2 w-full h-9 rounded-lg border border-warning/30 bg-warning/5 text-xs font-semibold text-warning hover:bg-warning/10 transition-colors"
+            {/* Feedback & Support */}
+            <div className="flex flex-col gap-2 pt-2">
+              <a
+                href={BUG_REPORT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full h-9 rounded-lg border border-border bg-muted/50 text-xs font-semibold text-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-colors"
               >
-                💳 Dukung Pengembangan via QRIS
-              </button>
+                🐞 Laporkan Bug
+              </a>
+              <a
+                href={FEATURE_REQUEST_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full h-9 rounded-lg border border-border bg-muted/50 text-xs font-semibold text-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-colors"
+              >
+                💡 Request Fitur
+              </a>
+               <button
+                 type="button"
+                 onClick={() => setSupportQrisDialog(true)}
+                 className="flex items-center justify-center gap-2 w-full h-9 rounded-lg border border-warning/30 bg-warning/5 text-xs font-semibold text-warning hover:bg-warning/10 transition-colors"
+               >
+                 💳 Dukung Pengembangan via QRIS
+               </button>
+              <p className="text-xs text-muted-foreground text-center px-1 pt-1 leading-relaxed">
+                Setiap laporan bug mempercepat perbaikan. Setiap dukungan mempercepat inovasi.
+              </p>
             </div>
            {storageUsage && (
              <div className="pt-2 border-t">
