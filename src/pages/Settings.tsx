@@ -294,10 +294,16 @@ export default function Pengaturan() {
       if (!apkUri.uri) throw new Error('File APK tidak ditemukan setelah download');
 
       toast.success('Download selesai. Membuka installer...');
-      await FileOpener.openFile({
-        path: apkUri.uri,
-        mimeType: 'application/vnd.android.package-archive',
-      });
+      try {
+        await FileOpener.openFile({
+          path: apkUri.uri,
+          mimeType: 'application/vnd.android.package-archive',
+        });
+        toast.info('Pilih "Installer paket" lalu tekan "Sekali".');
+      } catch {
+        toast.error('Installer tidak terbuka. Buka izin instal aplikasi tidak dikenal terlebih dahulu.');
+        await handleOpenInstallPermissionSettings();
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Gagal mengunduh update aplikasi';
       toast.error(message);
