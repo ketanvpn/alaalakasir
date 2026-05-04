@@ -269,6 +269,17 @@ export default function Pengaturan() {
       return;
     }
 
+    try {
+      const permission = await Filesystem.requestPermissions();
+      if (permission.publicStorage !== 'granted') {
+        toast.error('Izin penyimpanan dibutuhkan untuk mengunduh update di HP ini.');
+        return;
+      }
+    } catch {
+      toast.error('Gagal meminta izin penyimpanan. Coba izinkan dulu di Pengaturan aplikasi.');
+      return;
+    }
+
     setDownloadingUpdate(true);
     setUpdateProgress(0);
     setDownloadedApkUri(null);
