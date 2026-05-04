@@ -270,18 +270,31 @@ export default function Kasir() {
     if (!tx.id) return;
     const items = await db.transactionItems.where('transactionId').equals(tx.id).toArray();
     const allProducts = await db.products.where('isDeleted').equals(0).toArray();
+    const missingItems: string[] = [];
 
-    const cartItems: CartItem[] = items.map(item => {
+    const cartItems: CartItem[] = items.flatMap(item => {
       const product = allProducts.find(p => p.id === item.productId);
-      if (!product) throw new Error(`Produk "${item.productName}" tidak ditemukan`);
-      return {
+      if (!product) {
+        missingItems.push(item.productName);
+        return [];
+      }
+      return [{
         product,
         qty: item.quantity,
         discountType: item.discountType as 'percentage' | 'nominal' | null,
         discountValue: item.discountValue,
         notes: item.notes,
-      };
+      }];
     });
+
+    if (cartItems.length === 0) {
+      toast.error('Open bill tidak bisa dibuka karena semua produk sudah tidak tersedia.');
+      return;
+    }
+
+    if (missingItems.length > 0) {
+      toast.warning(`Sebagian item tidak dimuat karena produk sudah dihapus: ${missingItems.slice(0, 2).join(', ')}${missingItems.length > 2 ? '...' : ''}`);
+    }
 
     setCart(cartItems);
     setEditingTxId(tx.id);

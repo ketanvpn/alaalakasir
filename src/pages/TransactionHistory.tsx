@@ -100,7 +100,8 @@ export default function TransactionHistory() {
 
   const dateKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
-  const filteredTotal = filtered.filter(t => t.status !== 'open').reduce((s, t) => s + t.total, 0);
+  const filteredCompleted = filtered.filter(t => t.status !== 'open');
+  const filteredTotal = filteredCompleted.reduce((s, t) => s + t.total, 0);
   const hasDateFilter = dateFrom || dateTo;
 
   const openDetail = (tx: Transaction) => {
@@ -240,7 +241,7 @@ export default function TransactionHistory() {
           <Card className="border-0 shadow-sm">
             <CardContent className="p-3 text-center">
               <p className="text-xs text-muted-foreground">Total Transaksi</p>
-              <p className="text-lg font-bold text-primary">{filtered.length}</p>
+              <p className="text-lg font-bold text-primary">{filteredCompleted.length}</p>
             </CardContent>
           </Card>
           <Card className="border-0 shadow-sm">
