@@ -84,21 +84,21 @@ export default function Laporan() {
           <CardContent className="p-3 text-center">
             <ShoppingCart className="w-4 h-4 mx-auto text-primary mb-1" />
             <p className="text-lg font-bold">{txCount}</p>
-            <p className="text-[10px] text-muted-foreground">Transaksi</p>
+            <p className="text-xs text-muted-foreground">Transaksi</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-sm">
           <CardContent className="p-3 text-center">
             <TrendingUp className="w-4 h-4 mx-auto text-success mb-1" />
             <p className="text-sm font-bold">{rp(totalSales)}</p>
-            <p className="text-[10px] text-muted-foreground">Penjualan</p>
+            <p className="text-xs text-muted-foreground">Penjualan</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-sm">
           <CardContent className="p-3 text-center">
             <TrendingUp className="w-4 h-4 mx-auto text-accent mb-1" />
             <p className="text-sm font-bold">{rp(totalProfit)}</p>
-            <p className="text-[10px] text-muted-foreground">Profit</p>
+            <p className="text-xs text-muted-foreground">Laba Kotor</p>
           </CardContent>
         </Card>
       </div>
@@ -108,14 +108,14 @@ export default function Laporan() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-1.5">
             <DollarSign className="w-4 h-4" />
-            Laba Rugi
+            Ringkasan Laba Rugi
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex justify-between items-center text-sm">
             <div className="flex items-center gap-2">
               <ArrowUp className="w-3.5 h-3.5 text-success" />
-              <span>Pendapatan Kotor</span>
+              <span>Omzet Kotor</span>
             </div>
             <span className="font-semibold">{rp(totalRevenue)}</span>
           </div>
@@ -135,7 +135,7 @@ export default function Laporan() {
           <div className="flex justify-between items-center text-sm text-destructive">
             <div className="flex items-center gap-2">
               <ArrowDown className="w-3.5 h-3.5" />
-              <span>HPP (Modal)</span>
+              <span>Modal Barang Terjual (HPP)</span>
             </div>
             <span className="font-semibold">-{rp(totalHpp)}</span>
           </div>
@@ -146,8 +146,11 @@ export default function Laporan() {
             </span>
           </div>
           <div className="flex justify-between items-center text-xs text-muted-foreground">
-            <span>Margin</span>
+            <span>Margin (laba/penjualan bersih)</span>
             <span className="font-semibold">{marginPercent.toFixed(1)}%</span>
+          </div>
+          <div className="mt-2 rounded-lg bg-muted/60 p-2.5 text-xs text-muted-foreground leading-relaxed">
+            Rumus: <strong>Penjualan Bersih - Modal Barang (HPP) = Laba Kotor</strong>. Laba kotor belum termasuk biaya operasional seperti listrik, sewa, dan gaji.
           </div>
         </CardContent>
       </Card>

@@ -295,7 +295,7 @@ export default function Pengaturan() {
           <Card className="border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow mb-2">
             <CardContent className="p-3 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-success/10 text-success flex items-center justify-center"><ArrowDownToLine className="w-4 h-4" /></div>
-              <div className="flex-1"><p className="text-sm font-semibold">Stock In</p><p className="text-[10px] text-muted-foreground">Catat barang masuk & HPP otomatis</p></div>
+              <div className="flex-1"><p className="text-sm font-semibold">Stok Masuk</p><p className="text-xs text-muted-foreground">Catat barang masuk & HPP otomatis</p></div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </CardContent>
           </Card>
@@ -304,7 +304,7 @@ export default function Pengaturan() {
           <Card className="border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow mb-2">
             <CardContent className="p-3 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center"><ArrowUpFromLine className="w-4 h-4" /></div>
-              <div className="flex-1"><p className="text-sm font-semibold">Stock Out</p><p className="text-[10px] text-muted-foreground">Catat barang keluar non-penjualan</p></div>
+              <div className="flex-1"><p className="text-sm font-semibold">Stok Keluar</p><p className="text-xs text-muted-foreground">Catat barang keluar non-penjualan</p></div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </CardContent>
           </Card>

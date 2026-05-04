@@ -239,13 +239,13 @@ export default function TransactionHistory() {
         <div className="grid grid-cols-2 gap-2 mb-4">
           <Card className="border-0 shadow-sm">
             <CardContent className="p-3 text-center">
-              <p className="text-[10px] text-muted-foreground">Total Transaksi</p>
+              <p className="text-xs text-muted-foreground">Total Transaksi</p>
               <p className="text-lg font-bold text-primary">{filtered.length}</p>
             </CardContent>
           </Card>
           <Card className="border-0 shadow-sm">
             <CardContent className="p-3 text-center">
-              <p className="text-[10px] text-muted-foreground">Total Penjualan</p>
+              <p className="text-xs text-muted-foreground">Total Penjualan</p>
               <p className="text-lg font-bold text-primary">{rp(filteredTotal)}</p>
             </CardContent>
           </Card>

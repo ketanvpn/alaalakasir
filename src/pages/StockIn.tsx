@@ -95,7 +95,7 @@ export default function StockInPage() {
           </Link>
           <h1 className="text-xl font-bold flex items-center gap-2">
             <ArrowDownToLine className="w-5 h-5 text-success" />
-            Stock In
+            Stok Masuk
           </h1>
         </div>
         <Button size="sm" onClick={openAdd} className="h-9 gap-1.5">
@@ -117,7 +117,7 @@ export default function StockInPage() {
         {filtered.length === 0 ? (
           <div className="text-center py-12">
             <ArrowDownToLine className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-            <p className="text-sm text-muted-foreground">Belum ada data stock in</p>
+            <p className="text-sm text-muted-foreground">Belum ada data stok masuk</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -148,7 +148,7 @@ export default function StockInPage() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-[95vw] rounded-xl">
-          <DialogHeader><DialogTitle>Tambah Stock In</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Tambah Stok Masuk</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
               <Label>Produk *</Label>
@@ -181,7 +181,7 @@ export default function StockInPage() {
               </div>
             )}
             <div className="space-y-1.5"><Label>Catatan</Label><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Opsional" className="h-11" /></div>
-            <Button className="w-full h-12 text-base font-semibold" onClick={handleSave}>Simpan Stock In</Button>
+            <Button className="w-full h-12 text-base font-semibold" onClick={handleSave}>Simpan Stok Masuk</Button>
           </div>
         </DialogContent>
       </Dialog>

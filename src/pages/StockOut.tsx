@@ -73,7 +73,7 @@ export default function StockOutPage() {
           </Link>
           <h1 className="text-xl font-bold flex items-center gap-2">
             <ArrowUpFromLine className="w-5 h-5 text-destructive" />
-            Stock Out
+            Stok Keluar
           </h1>
         </div>
         <Button size="sm" onClick={openAdd} className="h-9 gap-1.5">
@@ -87,7 +87,7 @@ export default function StockOutPage() {
         {(!stockOuts || stockOuts.length === 0) ? (
           <div className="text-center py-12">
             <ArrowUpFromLine className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-            <p className="text-sm text-muted-foreground">Belum ada data stock out</p>
+            <p className="text-sm text-muted-foreground">Belum ada data stok keluar</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -114,7 +114,7 @@ export default function StockOutPage() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-[95vw] rounded-xl">
-          <DialogHeader><DialogTitle>Tambah Stock Out</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Tambah Stok Keluar</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
               <Label>Produk *</Label>
@@ -143,7 +143,7 @@ export default function StockOutPage() {
               </div>
             )}
             <div className="space-y-1.5"><Label>Catatan</Label><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Opsional" className="h-11" /></div>
-            <Button className="w-full h-12 text-base font-semibold" onClick={handleSave}>Simpan Stock Out</Button>
+            <Button className="w-full h-12 text-base font-semibold" onClick={handleSave}>Simpan Stok Keluar</Button>
           </div>
         </DialogContent>
       </Dialog>
