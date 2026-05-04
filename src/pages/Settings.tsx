@@ -56,6 +56,7 @@ export default function Pengaturan() {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [downloadingUpdate, setDownloadingUpdate] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
+  const [downloadedApkUri, setDownloadedApkUri] = useState<string | null>(null);
   const [supportQrisDialog, setSupportQrisDialog] = useState(false);
   useEffect(() => {
     if (navigator.storage?.estimate) {
@@ -267,6 +268,7 @@ export default function Pengaturan() {
 
     setDownloadingUpdate(true);
     setUpdateProgress(0);
+    setDownloadedApkUri(null);
     let progressListener: { remove: () => Promise<void> } | null = null;
 
     try {
@@ -290,20 +292,17 @@ export default function Pengaturan() {
         progress: true,
       });
 
+      const downloadedStat = await Filesystem.stat({ path: UPDATE_APK_PATH, directory: Directory.Cache });
+      const downloadedSize = Number(downloadedStat.size ?? 0);
+      if (!Number.isFinite(downloadedSize) || downloadedSize < 500_000) {
+        throw new Error('File update tidak valid. Coba ulangi download.');
+      }
+
       const apkUri = await Filesystem.getUri({ path: UPDATE_APK_PATH, directory: Directory.Cache });
       if (!apkUri.uri) throw new Error('File APK tidak ditemukan setelah download');
 
-      toast.success('Download selesai. Membuka installer...');
-      try {
-        await FileOpener.openFile({
-          path: apkUri.uri,
-          mimeType: 'application/vnd.android.package-archive',
-        });
-        toast.info('Pilih "Installer paket" lalu tekan "Sekali".');
-      } catch {
-        toast.error('Installer tidak terbuka. Buka izin instal aplikasi tidak dikenal terlebih dahulu.');
-        await handleOpenInstallPermissionSettings();
-      }
+      setDownloadedApkUri(apkUri.uri);
+      toast.success('Download selesai. Tekan "Install Sekarang" untuk melanjutkan.');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Gagal mengunduh update aplikasi';
       toast.error(message);
@@ -311,6 +310,24 @@ export default function Pengaturan() {
       if (progressListener) await progressListener.remove();
       setDownloadingUpdate(false);
       setUpdateProgress(0);
+    }
+  };
+
+  const handleInstallDownloadedApk = async () => {
+    if (!downloadedApkUri) {
+      toast.error('File update belum tersedia. Download dulu.');
+      return;
+    }
+
+    try {
+      await FileOpener.openFile({
+        path: downloadedApkUri,
+        mimeType: 'application/vnd.android.package-archive',
+      });
+      toast.info('Pilih "Installer paket" lalu tekan "Sekali".');
+    } catch {
+      toast.error('Installer tidak terbuka. Buka izin instal aplikasi tidak dikenal terlebih dahulu.');
+      await handleOpenInstallPermissionSettings();
     }
   };
 
@@ -513,8 +530,19 @@ export default function Pengaturan() {
                   >
                     {downloadingUpdate ? `Mengunduh... ${updateProgress}%` : 'Download & Install'}
                   </Button>
+                  {downloadedApkUri && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={handleInstallDownloadedApk}
+                    >
+                      Install Sekarang
+                    </Button>
+                  )}
                   <p className="text-[10px] text-muted-foreground">
-                    Setelah download selesai, installer Android akan terbuka otomatis.
+                    Setelah download selesai, tekan Install Sekarang lalu pilih Installer paket.
                   </p>
                   <Button
                     type="button"
