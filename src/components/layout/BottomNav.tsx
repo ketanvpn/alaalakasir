@@ -16,20 +16,42 @@ export default function BottomNav() {
 
   useEffect(() => {
     const viewport = window.visualViewport;
-    if (!viewport) return;
 
     const updateKeyboardState = () => {
+      if (!viewport) return;
       const heightDiff = window.innerHeight - viewport.height;
-      setKeyboardOpen(heightDiff > 140);
+      setKeyboardOpen(heightDiff > 120);
+    };
+
+    const isTextInput = (target: EventTarget | null): boolean => {
+      if (!(target instanceof HTMLElement)) return false;
+      if (target.isContentEditable) return true;
+      const tag = target.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    };
+
+    const handleFocusIn = (event: FocusEvent) => {
+      if (isTextInput(event.target)) setKeyboardOpen(true);
+    };
+
+    const handleFocusOut = () => {
+      setTimeout(() => {
+        const active = document.activeElement;
+        if (!isTextInput(active)) setKeyboardOpen(false);
+      }, 0);
     };
 
     updateKeyboardState();
-    viewport.addEventListener('resize', updateKeyboardState);
+    viewport?.addEventListener('resize', updateKeyboardState);
     window.addEventListener('resize', updateKeyboardState);
+    window.addEventListener('focusin', handleFocusIn);
+    window.addEventListener('focusout', handleFocusOut);
 
     return () => {
-      viewport.removeEventListener('resize', updateKeyboardState);
+      viewport?.removeEventListener('resize', updateKeyboardState);
       window.removeEventListener('resize', updateKeyboardState);
+      window.removeEventListener('focusin', handleFocusIn);
+      window.removeEventListener('focusout', handleFocusOut);
     };
   }, []);
 

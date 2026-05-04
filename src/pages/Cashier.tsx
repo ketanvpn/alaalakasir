@@ -495,12 +495,8 @@ export default function Kasir() {
     }
   };
 
-  // Auto-focus scan input after it clears
-  useEffect(() => {
-    if (scanInput === '' && scanInputRef.current) {
-      scanInputRef.current.focus();
-    }
-  }, [scanInput]);
+  // Avoid forcing keyboard open on older Android devices.
+  // User can tap the field manually when needed.
 
   const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`;
 
