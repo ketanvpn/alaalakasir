@@ -281,7 +281,7 @@ export default function Pengaturan() {
       });
 
       try {
-        await Filesystem.deleteFile({ path: UPDATE_APK_PATH, directory: Directory.Cache });
+        await Filesystem.deleteFile({ path: UPDATE_APK_PATH, directory: Directory.Documents });
       } catch {
         // ignore if old file doesn't exist
       }
@@ -290,18 +290,27 @@ export default function Pengaturan() {
       await Filesystem.downloadFile({
         url: updateInfo.apkUrl,
         path: UPDATE_APK_PATH,
-        directory: Directory.Cache,
+        directory: Directory.Documents,
         recursive: true,
         progress: true,
       });
 
-      const downloadedStat = await Filesystem.stat({ path: UPDATE_APK_PATH, directory: Directory.Cache });
+      const downloadedStat = await Filesystem.stat({ path: UPDATE_APK_PATH, directory: Directory.Documents });
       const downloadedSize = Number(downloadedStat.size ?? 0);
       if (!Number.isFinite(downloadedSize) || downloadedSize < 500_000) {
         throw new Error('File update tidak valid. Coba ulangi download.');
       }
 
-      const apkUri = await Filesystem.getUri({ path: UPDATE_APK_PATH, directory: Directory.Cache });
+      const downloadedHead = await Filesystem.readFile({
+        path: UPDATE_APK_PATH,
+        directory: Directory.Documents,
+      });
+      const base64Head = typeof downloadedHead.data === 'string' ? downloadedHead.data : '';
+      if (!base64Head.startsWith('UEsDB')) {
+        throw new Error('File yang diunduh bukan APK valid. Coba ulangi atau cek aset rilis.');
+      }
+
+      const apkUri = await Filesystem.getUri({ path: UPDATE_APK_PATH, directory: Directory.Documents });
       if (!apkUri.uri) throw new Error('File APK tidak ditemukan setelah download');
 
       const fileNameFromUrl = updateInfo.apkUrl.split('/').pop() || 'alaalakasir-latest.apk';
@@ -363,6 +372,18 @@ export default function Pengaturan() {
       toast.info('Buka izin aplikasi lalu aktifkan: Instal aplikasi tidak dikenal.');
     } catch {
       toast.error('Gagal membuka pengaturan izin aplikasi.');
+    }
+  };
+
+  const handleOpenSecuritySettings = async () => {
+    try {
+      await NativeSettings.open({
+        optionAndroid: AndroidSettings.Security,
+        optionIOS: IOSSettings.App,
+      });
+      toast.info('Cari menu: Instal aplikasi tidak dikenal / Sumber tidak dikenal.');
+    } catch {
+      await handleOpenInstallPermissionSettings();
     }
   };
 
@@ -581,6 +602,15 @@ export default function Pengaturan() {
                   <p className="text-[10px] text-muted-foreground">
                     Setelah download selesai, tekan Install Sekarang lalu pilih Installer paket.
                   </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs text-muted-foreground"
+                    onClick={handleOpenSecuritySettings}
+                  >
+                    Buka Pengaturan Keamanan
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
