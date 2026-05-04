@@ -144,7 +144,7 @@ export default function TransactionHistory() {
   const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`;
 
   return (
-    <div className="px-4 pt-6 pb-4">
+    <div className="px-4 pt-6 pb-4 h-[calc(100dvh-4.5rem)] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
@@ -252,69 +252,71 @@ export default function TransactionHistory() {
         </div>
       )}
 
-      {/* Transaction list grouped by date */}
-      {dateKeys.length === 0 ? (
-        <div className="text-center py-16">
-          <ShoppingBag className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">
-            {hasDateFilter ? 'Tidak ada transaksi di rentang tanggal ini' : 'Belum ada transaksi'}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {dateKeys.map(dateKey => (
-            <div key={dateKey}>
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                <p className="text-xs font-semibold text-muted-foreground">
-                  {format(new Date(dateKey), 'EEEE, dd MMMM yyyy', { locale: localeId })}
-                </p>
-                <Badge variant="secondary" className="text-[10px] h-5">
-                  {grouped[dateKey].length} transaksi
-                </Badge>
-              </div>
-              <div className="space-y-2">
-                {grouped[dateKey].map(tx => (
-                  <Card
-                    key={tx.id ?? tx.receiptNumber}
-                    className="border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow active:scale-[0.99]"
-                    onClick={() => openDetail(tx)}
-                  >
-                    <CardContent className="p-3 flex items-center gap-3">
-                      <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', tx.status === 'open' ? 'bg-warning/10 text-warning' : 'bg-primary/10 text-primary')}>
-                        {tx.status === 'open' ? <ShoppingCart className="w-4 h-4" /> : <ReceiptIcon className="w-4 h-4" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-xs font-mono text-muted-foreground truncate">{tx.receiptNumber}</p>
-                            {tx.status === 'open' ? (
-                              <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-warning/20 text-warning border-warning/30">Open</Badge>
-                            ) : (
-                              <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-success/20 text-success border-success/30">Lunas</Badge>
-                            )}
+      <div className="flex-1 overflow-y-auto pb-24">
+        {/* Transaction list grouped by date */}
+        {dateKeys.length === 0 ? (
+          <div className="text-center py-16">
+            <ShoppingBag className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">
+              {hasDateFilter ? 'Tidak ada transaksi di rentang tanggal ini' : 'Belum ada transaksi'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {dateKeys.map(dateKey => (
+              <div key={dateKey}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    {format(new Date(dateKey), 'EEEE, dd MMMM yyyy', { locale: localeId })}
+                  </p>
+                  <Badge variant="secondary" className="text-[10px] h-5">
+                    {grouped[dateKey].length} transaksi
+                  </Badge>
+                </div>
+                <div className="space-y-2">
+                  {grouped[dateKey].map(tx => (
+                    <Card
+                      key={tx.id ?? tx.receiptNumber}
+                      className="border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow active:scale-[0.99]"
+                      onClick={() => openDetail(tx)}
+                    >
+                      <CardContent className="p-3 flex items-center gap-3">
+                        <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', tx.status === 'open' ? 'bg-warning/10 text-warning' : 'bg-primary/10 text-primary')}>
+                          {tx.status === 'open' ? <ShoppingCart className="w-4 h-4" /> : <ReceiptIcon className="w-4 h-4" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-xs font-mono text-muted-foreground truncate">{tx.receiptNumber}</p>
+                              {tx.status === 'open' ? (
+                                <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-warning/20 text-warning border-warning/30">Open</Badge>
+                              ) : (
+                                <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-success/20 text-success border-success/30">Lunas</Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">{format(new Date(tx.date), 'HH:mm')}</p>
                           </div>
-                          <p className="text-xs text-muted-foreground">{format(new Date(tx.date), 'HH:mm')}</p>
+                          <p className="text-sm font-bold text-primary">{rp(tx.total)}</p>
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground truncate">
+                            {tx.customerName && <span>👤 {tx.customerName}</span>}
+                            {tx.tableNumber && <span>Meja {tx.tableNumber}</span>}
+                            {tx.remarks && <span>📝 {tx.remarks}</span>}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {getTxItems(tx.id).map(it => it.productName).join(', ')}
+                          </p>
                         </div>
-                        <p className="text-sm font-bold text-primary">{rp(tx.total)}</p>
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground truncate">
-                          {tx.customerName && <span>👤 {tx.customerName}</span>}
-                          {tx.tableNumber && <span>Meja {tx.tableNumber}</span>}
-                          {tx.remarks && <span>📝 {tx.remarks}</span>}
-                        </div>
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {getTxItems(tx.id).map(it => it.productName).join(', ')}
-                        </p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                    </CardContent>
-                  </Card>
-                ))}
+                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Detail Sheet */}
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>

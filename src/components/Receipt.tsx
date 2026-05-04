@@ -28,6 +28,8 @@ const PRINTER_SERIAL_ADDRESS_KEY = 'alaalakasir_bt_serial_address';
 export default function Receipt({ open, onClose, transaction, items, storeSettings, paymentMethodName }: ReceiptProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
   const [generating, setGenerating] = useState(false);
+  const [printerPickerOpen, setPrinterPickerOpen] = useState(false);
+  const [printerCandidates, setPrinterCandidates] = useState<Array<{ address: string; name: string }>>([]);
 
   const resetSavedPrinter = () => {
     localStorage.removeItem(PRINTER_SERIAL_ADDRESS_KEY);
@@ -169,17 +171,26 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
             throw new Error('NO_CLASSIC_BT_DEVICE');
           }
 
-          const preferred = devices.find((d: any) => {
-            const name = String(d?.name || '').toLowerCase();
-            return name.includes('rpp') || name.includes('printer') || name.includes('pos') || name.includes('58');
-          });
-          const selected = preferred ?? devices[0];
-          address = selected.address || selected.id;
+          const mapped = devices
+            .map((d: any) => ({
+              address: String(d?.address || d?.id || ''),
+              name: String(d?.name || 'Bluetooth Printer'),
+            }))
+            .filter((d: { address: string }) => !!d.address);
 
-          if (!address) {
+          if (!mapped.length) {
             throw new Error('INVALID_CLASSIC_BT_ADDRESS');
           }
-          localStorage.setItem(PRINTER_SERIAL_ADDRESS_KEY, address);
+
+          if (mapped.length === 1) {
+            address = mapped[0].address;
+            localStorage.setItem(PRINTER_SERIAL_ADDRESS_KEY, address);
+          } else {
+            setPrinterCandidates(mapped);
+            setPrinterPickerOpen(true);
+            toast.info('Pilih printer Bluetooth terlebih dahulu.');
+            return;
+          }
         }
 
         toast.info('Menghubungkan printer Bluetooth thermal...');
@@ -366,6 +377,7 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
   const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto rounded-xl p-4">
         <DialogHeader>
@@ -476,5 +488,38 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
         </Button>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={printerPickerOpen} onOpenChange={setPrinterPickerOpen}>
+      <DialogContent className="max-w-[95vw] rounded-xl">
+        <DialogHeader>
+          <DialogTitle>Pilih Printer Bluetooth</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2 mt-2 max-h-[45vh] overflow-y-auto">
+          {printerCandidates.map((printer) => (
+            <Button
+              key={printer.address}
+              type="button"
+              variant="outline"
+              className="w-full h-auto py-2 px-3 justify-start text-left"
+              onClick={() => {
+                localStorage.setItem(PRINTER_SERIAL_ADDRESS_KEY, printer.address);
+                setPrinterPickerOpen(false);
+                toast.success(`Printer dipilih: ${printer.name}`);
+                setTimeout(() => {
+                  void handleBluetoothPrint();
+                }, 150);
+              }}
+            >
+              <span className="text-xs leading-5">
+                <strong>{printer.name}</strong><br />
+                <span className="text-muted-foreground">{printer.address}</span>
+              </span>
+            </Button>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted-foreground">Setelah memilih printer, tekan tombol Cetak lagi.</p>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
