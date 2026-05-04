@@ -20,7 +20,7 @@ import { compressImage } from '@/lib/image-utils';
 import { CURRENT_APP_VERSION, checkForAppUpdate, type AppUpdateInfo } from '@/lib/update-check';
 
 const SUPPORT_QRIS_URL = '/support/qris-ketantech.png';
-const UPDATE_APK_PATH = 'updates/alaalakasir-latest.apk';
+const UPDATE_APK_PATH = 'alaalakasir-latest.apk';
 const BUG_REPORT_URL = 'https://github.com/ketanvpn/alaalakasir/issues/new?template=bug_report.md&title=Bug%20v'+CURRENT_APP_VERSION.replace(/^v/i, '')+'%20-%20';
 const FEATURE_REQUEST_URL = 'https://github.com/ketanvpn/alaalakasir/issues/new?template=feature_request.md&title=Fitur%20Baru%20-%20';
 
