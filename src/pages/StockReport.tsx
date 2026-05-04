@@ -11,7 +11,7 @@ import { id } from 'date-fns/locale';
 export default function StockReport() {
   const [period, setPeriod] = useState<'7' | '30'>('7');
   const days = Number(period);
-  const since = startOfDay(subDays(new Date(), days));
+  const since = startOfDay(subDays(new Date(), days - 1));
 
   const products = useLiveQuery(() => db.products.toArray());
   const stockIns = useLiveQuery(async () => db.stockIns.where('date').aboveOrEqual(since).toArray(), [days]);

@@ -127,17 +127,32 @@ export default function Kasir() {
 
   const getItemSubtotal = (item: CartItem) => {
     const base = item.product.price * item.qty;
-    if (item.discountType === 'percentage') return base * (1 - item.discountValue / 100);
-    if (item.discountType === 'nominal') return base - item.discountValue;
+    if (item.discountType === 'percentage') {
+      const discount = Math.min(base, Math.max(0, base * (item.discountValue / 100)));
+      return base - discount;
+    }
+    if (item.discountType === 'nominal') {
+      const discount = Math.min(base, Math.max(0, item.discountValue));
+      return base - discount;
+    }
     return base;
   };
 
+  const getItemDiscountAmount = (item: CartItem) => {
+    const base = item.product.price * item.qty;
+    if (item.discountType === 'percentage') return Math.min(base, Math.max(0, base * (item.discountValue / 100)));
+    if (item.discountType === 'nominal') return Math.min(base, Math.max(0, item.discountValue));
+    return 0;
+  };
+
   const subtotal = cart.reduce((sum, item) => sum + getItemSubtotal(item), 0);
-  const txDiscountAmount = txDiscountType === 'percentage' ? subtotal * (Number(txDiscountValue) || 0) / 100 : txDiscountType === 'nominal' ? Number(txDiscountValue) || 0 : 0;
+  const txDiscountRaw = txDiscountType === 'percentage' ? subtotal * (Number(txDiscountValue) || 0) / 100 : txDiscountType === 'nominal' ? Number(txDiscountValue) || 0 : 0;
+  const txDiscountAmount = Math.min(subtotal, Math.max(0, txDiscountRaw));
   const total = Math.max(0, subtotal - txDiscountAmount);
   const paidAmount = Number(paymentAmount) || 0;
   const change = paidAmount - total;
-  const totalProfit = cart.reduce((sum, item) => sum + (item.product.price - item.product.hpp) * item.qty, 0) - txDiscountAmount;
+  const totalHpp = cart.reduce((sum, item) => sum + (item.product.hpp * item.qty), 0);
+  const totalProfit = total - totalHpp;
 
   // === Open Bill Operations ===
 
@@ -172,7 +187,7 @@ export default function Kasir() {
         hpp: c.product.hpp,
         discountType: c.discountType,
         discountValue: c.discountValue,
-        discountAmount: c.discountType === 'percentage' ? c.product.price * c.qty * c.discountValue / 100 : c.discountType === 'nominal' ? c.discountValue : 0,
+        discountAmount: getItemDiscountAmount(c),
         subtotal: getItemSubtotal(c),
         notes: c.notes,
       }));
@@ -234,7 +249,7 @@ export default function Kasir() {
         hpp: c.product.hpp,
         discountType: c.discountType,
         discountValue: c.discountValue,
-        discountAmount: c.discountType === 'percentage' ? c.product.price * c.qty * c.discountValue / 100 : c.discountType === 'nominal' ? c.discountValue : 0,
+        discountAmount: getItemDiscountAmount(c),
         subtotal: getItemSubtotal(c),
         notes: c.notes,
       }));
@@ -347,7 +362,7 @@ export default function Kasir() {
         hpp: c.product.hpp,
         discountType: c.discountType,
         discountValue: c.discountValue,
-        discountAmount: c.discountType === 'percentage' ? c.product.price * c.qty * c.discountValue / 100 : c.discountType === 'nominal' ? c.discountValue : 0,
+        discountAmount: getItemDiscountAmount(c),
         subtotal: getItemSubtotal(c),
         notes: c.notes,
       }));
@@ -410,7 +425,7 @@ export default function Kasir() {
         hpp: c.product.hpp,
         discountType: c.discountType,
         discountValue: c.discountValue,
-        discountAmount: c.discountType === 'percentage' ? c.product.price * c.qty * c.discountValue / 100 : c.discountType === 'nominal' ? c.discountValue : 0,
+        discountAmount: getItemDiscountAmount(c),
         subtotal: getItemSubtotal(c),
         notes: c.notes,
       }));
@@ -1115,7 +1130,7 @@ export default function Kasir() {
               />
               {tempDiscountType === 'percentage' && Number(tempDiscountValue) > 0 && (
                 <p className="text-xs text-muted-foreground text-center">
-                  = Rp {(subtotal * Number(tempDiscountValue) / 100).toLocaleString('id-ID')} dari Rp {subtotal.toLocaleString('id-ID')}
+                  = Rp {Math.min(subtotal, Math.max(0, subtotal * Number(tempDiscountValue) / 100)).toLocaleString('id-ID')} dari Rp {subtotal.toLocaleString('id-ID')}
                 </p>
               )}
             </div>
@@ -1132,8 +1147,12 @@ export default function Kasir() {
               )}
               <Button className="flex-1 h-11 font-semibold" onClick={() => {
                 if (Number(tempDiscountValue) > 0) {
+                  const normalized = Math.max(0, Number(tempDiscountValue));
+                  const capped = tempDiscountType === 'percentage'
+                    ? Math.min(100, normalized)
+                    : Math.min(subtotal, normalized);
                   setTxDiscountType(tempDiscountType);
-                  setTxDiscountValue(tempDiscountValue);
+                  setTxDiscountValue(String(capped));
                 } else {
                   setTxDiscountType(null);
                   setTxDiscountValue('');

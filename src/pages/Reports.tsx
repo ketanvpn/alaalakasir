@@ -12,7 +12,7 @@ export default function Laporan() {
   const days = Number(period);
 
   const transactions = useLiveQuery(async () => {
-    const since = startOfDay(subDays(new Date(), days));
+    const since = startOfDay(subDays(new Date(), days - 1));
     const recentTransactions = await db.transactions.where('date').aboveOrEqual(since).toArray();
     return recentTransactions.filter(t => t.status !== 'open');
   }, [days]);
@@ -27,7 +27,6 @@ export default function Laporan() {
   const allItems = txItems ?? [];
 
   const totalSales = transactions?.reduce((s, t) => s + t.total, 0) ?? 0;
-  const totalProfit = transactions?.reduce((s, t) => s + t.profit, 0) ?? 0;
   const txCount = transactions?.length ?? 0;
 
   // P&L breakdown
@@ -36,6 +35,7 @@ export default function Laporan() {
   const totalHpp = allItems.reduce((s, item) => s + item.hpp * item.quantity, 0);
   const netSales = totalRevenue - totalDiscount; // same as totalSales
   const grossProfit = netSales - totalHpp;
+  const totalProfit = grossProfit;
   const marginPercent = netSales > 0 ? (grossProfit / netSales * 100) : 0;
 
   // Chart data
