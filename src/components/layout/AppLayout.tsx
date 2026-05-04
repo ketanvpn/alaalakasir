@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, seedDefaultData } from '@/lib/db';
 import { useEffect } from 'react';
@@ -8,6 +8,7 @@ import Onboarding from '@/components/Onboarding';
 
 export default function AppLayout() {
   useThemeColor(); // Apply saved theme color on mount
+  const location = useLocation();
 
   useEffect(() => {
     seedDefaultData();
@@ -26,7 +27,9 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen bg-background max-w-lg md:max-w-6xl mx-auto relative">
       <main className="pb-20">
-        <Outlet />
+        <div key={location.pathname} className="route-transition">
+          <Outlet />
+        </div>
       </main>
       <BottomNav />
     </div>

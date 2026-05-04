@@ -123,6 +123,28 @@
 }
 
 @layer utilities {
+  .route-transition {
+    animation: route-slide-fade 180ms ease-out;
+    will-change: transform, opacity;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .route-transition {
+      animation: none;
+    }
+  }
+
+  @keyframes route-slide-fade {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 6px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
