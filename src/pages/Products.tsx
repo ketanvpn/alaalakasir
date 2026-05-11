@@ -117,7 +117,7 @@ export default function Produk() {
   };
 
   return (
-    <div className="px-4 pt-6 pb-4 h-[calc(100dvh-4.5rem)] flex flex-col gap-4 overflow-hidden">
+    <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4.5rem)] flex flex-col gap-4 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold flex items-center gap-2">

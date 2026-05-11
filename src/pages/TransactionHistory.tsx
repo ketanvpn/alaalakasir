@@ -136,7 +136,7 @@ export default function TransactionHistory() {
   const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`;
 
   return (
-    <div className="px-4 pt-6 pb-4 h-[calc(100dvh-4.5rem)] flex flex-col overflow-hidden">
+    <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4.5rem)] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>

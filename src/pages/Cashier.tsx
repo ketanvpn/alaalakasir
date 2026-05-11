@@ -348,7 +348,7 @@ export default function Kasir() {
   const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`;
 
   return (
-    <div className="px-4 pt-6 pb-4 h-[calc(100dvh-4rem)]">
+    <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4rem)]">
       <div className="flex flex-col md:flex-row gap-0 md:gap-4 h-full">
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           {/* Header */}
@@ -630,7 +630,7 @@ export default function Kasir() {
       {/* Cart Sheet (mobile only) */}
       <div className="md:hidden">
       <Sheet open={cartOpen} onOpenChange={(open) => { setCartOpen(open); if (!open) setEditingItemNotes(null); }}>
-        <SheetContent side="bottom" className="h-[88dvh] rounded-t-2xl max-w-lg mx-auto p-4 pb-0 flex flex-col overflow-hidden">
+        <SheetContent side="bottom" className="h-[88vh] max-h-[calc(var(--app-height,100vh)-2rem)] rounded-t-2xl max-w-lg mx-auto p-4 pb-0 flex flex-col overflow-hidden">
           <SheetHeader className="shrink-0 pr-8">
             <SheetTitle className="text-left">
               Keranjang ({cartCount} item)

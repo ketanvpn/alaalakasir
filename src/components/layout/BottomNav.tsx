@@ -16,11 +16,25 @@ export default function BottomNav() {
 
   useEffect(() => {
     const viewport = window.visualViewport;
+    const keyboardThreshold = 120;
+
+    const setAppHeight = () => {
+      document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+    };
+
+    const setKeyboardClass = (open: boolean) => {
+      document.documentElement.classList.toggle('keyboard-open', open);
+      document.body.classList.toggle('keyboard-open', open);
+    };
 
     const updateKeyboardState = () => {
-      if (!viewport) return;
-      const heightDiff = window.innerHeight - viewport.height;
-      setKeyboardOpen(heightDiff > 120);
+      const viewportHeight = viewport?.height ?? window.innerHeight;
+      const heightDiff = window.innerHeight - viewportHeight;
+      const isOpen = heightDiff > keyboardThreshold;
+
+      setKeyboardOpen(isOpen);
+      setKeyboardClass(isOpen);
+      if (!isOpen) setAppHeight();
     };
 
     const isTextInput = (target: EventTarget | null): boolean => {
@@ -31,16 +45,24 @@ export default function BottomNav() {
     };
 
     const handleFocusIn = (event: FocusEvent) => {
-      if (isTextInput(event.target)) setKeyboardOpen(true);
+      if (isTextInput(event.target)) {
+        setKeyboardOpen(true);
+        setKeyboardClass(true);
+      }
     };
 
     const handleFocusOut = () => {
       setTimeout(() => {
         const active = document.activeElement;
-        if (!isTextInput(active)) setKeyboardOpen(false);
+        if (!isTextInput(active)) {
+          setKeyboardOpen(false);
+          setKeyboardClass(false);
+          setAppHeight();
+        }
       }, 0);
     };
 
+    setAppHeight();
     updateKeyboardState();
     viewport?.addEventListener('resize', updateKeyboardState);
     window.addEventListener('resize', updateKeyboardState);
@@ -52,6 +74,7 @@ export default function BottomNav() {
       window.removeEventListener('resize', updateKeyboardState);
       window.removeEventListener('focusin', handleFocusIn);
       window.removeEventListener('focusout', handleFocusOut);
+      setKeyboardClass(false);
     };
   }, []);
 

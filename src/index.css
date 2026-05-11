@@ -116,6 +116,21 @@
     height: 100%;
   }
 
+  html {
+    --app-height: 100vh;
+  }
+
+  html.keyboard-open,
+  body.keyboard-open {
+    overscroll-behavior: contain;
+  }
+
+  html.keyboard-open input,
+  html.keyboard-open textarea,
+  html.keyboard-open select {
+    scroll-margin-bottom: 45vh;
+  }
+
   /* PWA safe area */
   html {
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
