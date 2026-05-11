@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { X, Camera, CameraOff, Flashlight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,18 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
   const [flashOn, setFlashOn] = useState(false);
   const [scanning, setScanning] = useState(false);
   const scannerId = 'barcode-scanner';
+
+  const handleStop = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current = null;
+      } catch {
+        // Ignore errors when stopping scanner
+      }
+    }
+    setScanning(false);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -78,19 +90,7 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
     return () => {
       handleStop();
     };
-  }, [open]);
-
-  const handleStop = async () => {
-    if (scannerRef.current && scanning) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current = null;
-      } catch {
-        // Ignore errors when stopping scanner
-      }
-    }
-    setScanning(false);
-  };
+  }, [handleStop, onClose, onScan, open]);
 
   const toggleFlash = async () => {
     if (!scannerRef.current) return;

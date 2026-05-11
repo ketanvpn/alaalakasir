@@ -31,7 +31,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
 
       - name: Setup Java
@@ -67,16 +67,16 @@ jobs:
         run: |
           VERSION="${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag || '' }}"
           CLEAN_VERSION="${VERSION#v}"
-          if [[ "$CLEAN_VERSION" =~ ^([0-9])\.([0-9])\.([0-9])$ ]]; then
+          if [[ "$CLEAN_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
             VERSION_CODE=$((10#${BASH_REMATCH[1]} * 10000 + 10#${BASH_REMATCH[2]} * 100 + 10#${BASH_REMATCH[3]}))
             echo "version_name=$CLEAN_VERSION" >> "$GITHUB_OUTPUT"
             echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
           else
             PACKAGE_VERSION=$(node -p "require('./package.json').version")
             CLEAN_PACKAGE_VERSION="${PACKAGE_VERSION#v}"
-            if [[ ! "$CLEAN_PACKAGE_VERSION" =~ ^[0-9]\.[0-9]\.[0-9]$ ]]; then
+            if [[ ! "$CLEAN_PACKAGE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               echo "Invalid app version format: $CLEAN_PACKAGE_VERSION"
-              echo "Use version format 0.x.x with single digit per segment, example: 0.4.9"
+              echo "Use semantic version format, example: 0.4.9, 0.10.0, or 1.0.0"
               exit 1
             fi
             IFS='.' read -r MAJOR MINOR PATCH <<< "$CLEAN_PACKAGE_VERSION"
@@ -151,9 +151,9 @@ jobs:
           CLEAN_TAG="${CLEAN_TAG#\'}"
           CLEAN_TAG="${CLEAN_TAG%\'}"
 
-          if [[ ! "$CLEAN_TAG" =~ ^v[0-9]\.[0-9]\.[0-9]$ ]]; then
+          if [[ ! "$CLEAN_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Invalid release tag: '$RAW_TAG'"
-            echo "Use tag format v0.x.x with single digit per segment, example: v0.4.9"
+            echo "Use semantic version tag format, example: v0.4.9, v0.10.0, or v1.0.0"
             exit 1
           fi
 

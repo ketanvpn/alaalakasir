@@ -17,6 +17,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import ReceiptDialog from '@/components/Receipt';
 import { toast } from 'sonner';
+import { deleteTransaction } from '@/lib/services/salesService';
 
 export default function TransactionHistory() {
   const navigate = useNavigate();
@@ -122,17 +123,7 @@ export default function TransactionHistory() {
   const handleDeleteTransaction = async () => {
     if (!selectedTx?.id) return;
     try {
-      if (restoreStock) {
-        const items = getTxItems(selectedTx.id);
-        for (const item of items) {
-          const product = await db.products.get(item.productId);
-          if (product) {
-            await db.products.update(item.productId, { stock: product.stock + item.quantity });
-          }
-        }
-      }
-      await db.transactionItems.where('transactionId').equals(selectedTx.id).delete();
-      await db.transactions.delete(selectedTx.id);
+      await deleteTransaction(selectedTx.id, restoreStock);
       setDeleteDialogOpen(false);
       setDetailOpen(false);
       setSelectedTx(null);

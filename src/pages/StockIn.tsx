@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
+import { addStockIn } from '@/lib/services/stockService';
 
 export default function StockInPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -46,44 +47,20 @@ export default function StockInPage() {
       return;
     }
 
-    const product = products?.find(p => p.id === Number(productId));
-    if (!product) return;
+    try {
+      const result = await addStockIn({
+        productId: Number(productId),
+        supplierId: Number(supplierId),
+        quantity: qty,
+        buyPrice: price,
+        notes: notes.trim(),
+      });
 
-    // Save stock in record
-    await db.stockIns.add({
-      productId: Number(productId),
-      supplierId: Number(supplierId),
-      quantity: qty,
-      buyPrice: price,
-      totalPrice: qty * price,
-      date: new Date(),
-      notes: notes.trim(),
-    });
-
-    // Calculate new weighted average HPP
-    const oldStock = product.stock;
-    const oldHpp = product.hpp;
-    const newStock = oldStock + qty;
-    const newHpp = newStock > 0 ? ((oldStock * oldHpp) + (qty * price)) / newStock : price;
-
-    // Save HPP history
-    await db.hppHistory.add({
-      productId: product.id!,
-      oldHpp,
-      newHpp,
-      source: 'stock_in',
-      date: new Date(),
-    });
-
-    // Update product stock and HPP
-    await db.products.update(product.id!, {
-      stock: newStock,
-      hpp: Math.round(newHpp),
-      updatedAt: new Date(),
-    });
-
-    toast.success(`Stok ${product.name} bertambah ${qty}. HPP: Rp ${Math.round(newHpp).toLocaleString('id-ID')}`);
-    setDialogOpen(false);
+      toast.success(`Stok ${result.product.name} bertambah ${result.quantity}. HPP: Rp ${result.newHpp.toLocaleString('id-ID')}`);
+      setDialogOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Gagal menyimpan stok masuk');
+    }
   };
 
   return (

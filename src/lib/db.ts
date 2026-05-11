@@ -144,6 +144,36 @@ const TABLE_NAMES = [
   'storeSettings',
 ] as const;
 
+type SoftDeleteMigrationRecord = {
+  isDeleted?: number;
+  deletedAt?: Date | null;
+};
+
+type StoreSettingsMigrationRecord = {
+  deviceId?: string;
+};
+
+type LegacyTransactionItem = {
+  productId: number;
+  productName: string;
+  quantity: number;
+  price: number;
+  hpp: number;
+  discountType: 'percentage' | 'nominal' | null;
+  discountValue: number;
+  discountAmount: number;
+  subtotal: number;
+};
+
+type LegacyTransactionRecord = Transaction & {
+  items?: LegacyTransactionItem[];
+};
+
+type ProductSkuMigrationRecord = {
+  id?: number;
+  sku?: string;
+};
+
 class PosDatabase extends Dexie {
   categories!: Table<Category>;
   products!: Table<Product>;
@@ -186,39 +216,39 @@ class PosDatabase extends Dexie {
       storeSettings: '++id',
     }).upgrade(async (tx) => {
       // CR-2: Set soft delete defaults on existing records
-      const catTable = tx.table('categories');
-      await catTable.toCollection().modify((cat: any) => {
+      const catTable = tx.table<SoftDeleteMigrationRecord, number>('categories');
+      await catTable.toCollection().modify((cat) => {
         cat.isDeleted = 0;
         cat.deletedAt = null;
       });
 
-      const prodTable = tx.table('products');
-      await prodTable.toCollection().modify((prod: any) => {
+      const prodTable = tx.table<SoftDeleteMigrationRecord, number>('products');
+      await prodTable.toCollection().modify((prod) => {
         prod.isDeleted = 0;
         prod.deletedAt = null;
       });
 
-      const supTable = tx.table('suppliers');
-      await supTable.toCollection().modify((sup: any) => {
+      const supTable = tx.table<SoftDeleteMigrationRecord, number>('suppliers');
+      await supTable.toCollection().modify((sup) => {
         sup.isDeleted = 0;
         sup.deletedAt = null;
       });
 
       // CR-1: Generate deviceId for existing storeSettings
-      const storeTable = tx.table('storeSettings');
-      await storeTable.toCollection().modify((s: any) => {
+      const storeTable = tx.table<StoreSettingsMigrationRecord, number>('storeSettings');
+      await storeTable.toCollection().modify((s) => {
         s.deviceId = crypto.randomUUID();
       });
 
       // CR-5: Migrate embedded items[] from transactions to transactionItems table
-      const txTable = tx.table('transactions');
-      const itemsTable = tx.table('transactionItems');
+      const txTable = tx.table<LegacyTransactionRecord, number>('transactions');
+      const itemsTable = tx.table<TransactionItemRecord, number>('transactionItems');
       const allTx = await txTable.toArray();
 
       for (const t of allTx) {
-        const items = (t as any).items;
+        const items = t.items;
         if (Array.isArray(items) && items.length > 0) {
-          const records = items.map((item: any) => ({
+          const records = items.map((item) => ({
             transactionId: t.id!,
             productId: item.productId,
             productName: item.productName,
@@ -233,7 +263,7 @@ class PosDatabase extends Dexie {
           await itemsTable.bulkAdd(records);
         }
         // Remove embedded items field
-        delete (t as any).items;
+        delete t.items;
         await txTable.put(t);
       }
     });
@@ -252,7 +282,7 @@ class PosDatabase extends Dexie {
       storeSettings:    '++id',
     }).upgrade(async (tx) => {
       // Set all existing transactions to 'completed' status
-      await tx.table('transactions').toCollection().modify((t: any) => {
+      await tx.table<Partial<Transaction>, number>('transactions').toCollection().modify((t) => {
         t.status = 'completed';
       });
     });
@@ -271,12 +301,12 @@ class PosDatabase extends Dexie {
       storeSettings:    '++id',
     }).upgrade(async (tx) => {
       // Deduplicate SKUs before applying unique constraint
-      const prodTable = tx.table('products');
+      const prodTable = tx.table<ProductSkuMigrationRecord, number>('products');
       const allProducts = await prodTable.toArray();
-      const seenSku = new Map<string, number>(); // sku -> first occurrence index
+      const seenSku = new Map<string, number | undefined>(); // sku -> first occurrence id
 
       for (const p of allProducts) {
-        const sku = (p as any).sku as string | undefined;
+        const sku = p.sku;
         if (!sku || sku.trim() === '') continue;
 
         if (seenSku.has(sku)) {
@@ -287,10 +317,10 @@ class PosDatabase extends Dexie {
             counter++;
             newSku = `${sku}_dup${counter}`;
           }
-          seenSku.set(newSku, (p as any).id);
-          await prodTable.update((p as any).id!, { sku: newSku });
+          seenSku.set(newSku, p.id);
+          await prodTable.update(p.id!, { sku: newSku });
         } else {
-          seenSku.set(sku, (p as any).id);
+          seenSku.set(sku, p.id);
         }
       }
     });

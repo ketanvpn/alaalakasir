@@ -2,24 +2,33 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
 import AppLayout from "./components/layout/AppLayout";
-import Dashboard from "./pages/Dashboard";
-import Cashier from "./pages/Cashier";
-import Products from "./pages/Products";
-import Reports from "./pages/Reports";
-import Settings from "./pages/Settings";
-import SupplierPage from "./pages/Supplier";
-import StockInPage from "./pages/StockIn";
-import StockOutPage from "./pages/StockOut";
-import TransactionHistory from "./pages/TransactionHistory";
-import StockReport from "./pages/StockReport";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Cashier = lazy(() => import("./pages/Cashier"));
+const Products = lazy(() => import("./pages/Products"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Settings = lazy(() => import("./pages/Settings"));
+const SupplierPage = lazy(() => import("./pages/Supplier"));
+const StockInPage = lazy(() => import("./pages/StockIn"));
+const StockOutPage = lazy(() => import("./pages/StockOut"));
+const TransactionHistory = lazy(() => import("./pages/TransactionHistory"));
+const StockReport = lazy(() => import("./pages/StockReport"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+function RouteFallback() {
+  return (
+    <div className="min-h-[50vh] flex items-center justify-center px-6">
+      <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+    </div>
+  );
+}
 
 const App = () => {
   useEffect(() => {
@@ -57,21 +66,23 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/cashier" element={<Cashier />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/supplier" element={<SupplierPage />} />
-              <Route path="/stock-in" element={<StockInPage />} />
-              <Route path="/stock-out" element={<StockOutPage />} />
-              <Route path="/history" element={<TransactionHistory />} />
-              <Route path="/stock-report" element={<StockReport />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/cashier" element={<Cashier />} />
+                <Route path="/products" element={<Products />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/supplier" element={<SupplierPage />} />
+                <Route path="/stock-in" element={<StockInPage />} />
+                <Route path="/stock-out" element={<StockOutPage />} />
+                <Route path="/history" element={<TransactionHistory />} />
+                <Route path="/stock-report" element={<StockReport />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
+import { addStockOut } from '@/lib/services/stockService';
 
 const REASONS = ['Rusak', 'Hilang', 'Kadaluarsa', 'Retur ke Supplier', 'Pemakaian Sendiri', 'Lainnya'];
 
@@ -47,21 +48,19 @@ export default function StockOutPage() {
       return;
     }
 
-    await db.stockOuts.add({
-      productId: Number(productId),
-      quantity: qty,
-      reason,
-      date: new Date(),
-      notes: notes.trim(),
-    });
+    try {
+      const result = await addStockOut({
+        productId: Number(productId),
+        quantity: qty,
+        reason,
+        notes: notes.trim(),
+      });
 
-    await db.products.update(product.id!, {
-      stock: product.stock - qty,
-      updatedAt: new Date(),
-    });
-
-    toast.success(`Stok ${product.name} berkurang ${qty}`);
-    setDialogOpen(false);
+      toast.success(`Stok ${result.product.name} berkurang ${result.quantity}`);
+      setDialogOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Gagal menyimpan stok keluar');
+    }
   };
 
   return (

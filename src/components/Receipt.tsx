@@ -5,6 +5,7 @@ import html2canvas from 'html2canvas';
 import { Capacitor } from '@capacitor/core';
 import { BluetoothLe } from '@capacitor-community/bluetooth-le';
 import { BluetoothSerial } from '@e-is/capacitor-bluetooth-serial';
+import type { BluetoothDevice } from '@e-is/capacitor-bluetooth-serial';
 import { Download, Share2, Printer, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -165,14 +166,14 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
         if (!address) {
           toast.info('Mencari printer thermal Bluetooth...');
           const scanResult = await BluetoothSerial.scan();
-          const devices = (scanResult as any)?.devices ?? [];
+          const devices: BluetoothDevice[] = scanResult.devices ?? [];
 
           if (!devices.length) {
             throw new Error('NO_CLASSIC_BT_DEVICE');
           }
 
           const mapped = devices
-            .map((d: any) => ({
+            .map(d => ({
               address: String(d?.address || d?.id || ''),
               name: String(d?.name || 'Bluetooth Printer'),
             }))
@@ -228,7 +229,7 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
         let useWriteWithoutResponse = true;
 
         try {
-          const services = (await BluetoothLe.getServices(deviceId)) as any[];
+          const { services } = await BluetoothLe.getServices({ deviceId });
           let selected: { service: string; characteristic: string; useWriteWithoutResponse: boolean } | null = null;
 
           for (const service of services ?? []) {

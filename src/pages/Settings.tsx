@@ -17,9 +17,9 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { exportBackupData } from '@/components/BackupReminder';
 import { compressImage } from '@/lib/image-utils';
 import { CURRENT_APP_VERSION, checkForAppUpdate, type AppUpdateInfo } from '@/lib/update-check';
+import { backupHasData, exportBackupData, isBackupData, restoreBackupData } from '@/lib/services/backupService';
 
 const SUPPORT_QRIS_URL = '/support/qris-ketantech.png';
 const UPDATE_APK_PATH = 'alaalakasir-latest.apk';
@@ -133,96 +133,18 @@ export default function Pengaturan() {
       try {
         const text = await file.text();
         if (!text.trim()) { toast.error('File kosong'); return; }
-        const data = JSON.parse(text);
-        if (!data.version) { toast.error('File tidak valid'); return; }
+        {
+          const data: unknown = JSON.parse(text);
+          if (!isBackupData(data)) { toast.error('File tidak valid'); return; }
+          if (!backupHasData(data)) { toast.error('File backup tidak berisi data'); return; }
 
-        // Validate at least 1 table has data
-        const hasSomeData = ['categories', 'products', 'suppliers', 'transactions', 'paymentMethods'].some(
-          key => Array.isArray(data[key]) && data[key].length > 0
-        );
-        if (!hasSomeData) { toast.error('File backup tidak berisi data'); return; }
-
-        // CR-7: Snapshot existing data before clearing
-        const snapshot = {
-          categories: await db.categories.toArray(),
-          products: await db.products.toArray(),
-          suppliers: await db.suppliers.toArray(),
-          stockIns: await db.stockIns.toArray(),
-          stockOuts: await db.stockOuts.toArray(),
-          hppHistory: await db.hppHistory.toArray(),
-          paymentMethods: await db.paymentMethods.toArray(),
-          transactions: await db.transactions.toArray(),
-          transactionItems: await db.transactionItems.toArray(),
-          storeSettings: await db.storeSettings.toArray(),
-        };
-
-        try {
-          // Clear all tables
-          await db.categories.clear(); await db.products.clear(); await db.suppliers.clear();
-          await db.stockIns.clear(); await db.stockOuts.clear(); await db.hppHistory.clear();
-          await db.paymentMethods.clear(); await db.transactions.clear(); await db.transactionItems.clear();
-          await db.storeSettings.clear();
-
-          // BulkAdd from file
-          if (data.categories?.length) await db.categories.bulkAdd(data.categories);
-          if (data.products?.length) await db.products.bulkAdd(data.products);
-          if (data.suppliers?.length) await db.suppliers.bulkAdd(data.suppliers);
-          if (data.stockIns?.length) await db.stockIns.bulkAdd(data.stockIns);
-          if (data.stockOuts?.length) await db.stockOuts.bulkAdd(data.stockOuts);
-          if (data.hppHistory?.length) await db.hppHistory.bulkAdd(data.hppHistory);
-          if (data.paymentMethods?.length) await db.paymentMethods.bulkAdd(data.paymentMethods);
-          if (data.transactions?.length) await db.transactions.bulkAdd(data.transactions);
-          if (data.storeSettings?.length) await db.storeSettings.bulkAdd(data.storeSettings);
-
-          // Handle transactionItems
-          if (data.transactionItems?.length) {
-            // v2 format: items already in separate table
-            await db.transactionItems.bulkAdd(data.transactionItems);
-          } else if (data.version === 1 && data.transactions?.length) {
-            // v1 format: migrate embedded items[] to transactionItems
-            for (const t of data.transactions) {
-              if (Array.isArray(t.items) && t.items.length > 0) {
-                const records = t.items.map((item: any) => ({
-                  transactionId: t.id,
-                  productId: item.productId,
-                  productName: item.productName,
-                  quantity: item.quantity,
-                  price: item.price,
-                  hpp: item.hpp,
-                  discountType: item.discountType,
-                  discountValue: item.discountValue,
-                  discountAmount: item.discountAmount,
-                  subtotal: item.subtotal,
-                }));
-                await db.transactionItems.bulkAdd(records);
-              }
-            }
-          }
-
-          toast.success('Data berhasil di-restore! Aplikasi akan memuat data terbaru.');
-        } catch (importErr) {
-          // CR-7: Rollback — restore from snapshot
           try {
-            await db.categories.clear(); await db.products.clear(); await db.suppliers.clear();
-            await db.stockIns.clear(); await db.stockOuts.clear(); await db.hppHistory.clear();
-            await db.paymentMethods.clear(); await db.transactions.clear(); await db.transactionItems.clear();
-            await db.storeSettings.clear();
-
-            if (snapshot.categories.length) await db.categories.bulkAdd(snapshot.categories);
-            if (snapshot.products.length) await db.products.bulkAdd(snapshot.products);
-            if (snapshot.suppliers.length) await db.suppliers.bulkAdd(snapshot.suppliers);
-            if (snapshot.stockIns.length) await db.stockIns.bulkAdd(snapshot.stockIns);
-            if (snapshot.stockOuts.length) await db.stockOuts.bulkAdd(snapshot.stockOuts);
-            if (snapshot.hppHistory.length) await db.hppHistory.bulkAdd(snapshot.hppHistory);
-            if (snapshot.paymentMethods.length) await db.paymentMethods.bulkAdd(snapshot.paymentMethods);
-            if (snapshot.transactions.length) await db.transactions.bulkAdd(snapshot.transactions);
-            if (snapshot.transactionItems.length) await db.transactionItems.bulkAdd(snapshot.transactionItems);
-            if (snapshot.storeSettings.length) await db.storeSettings.bulkAdd(snapshot.storeSettings);
-
-            toast.error('Import gagal, data dikembalikan');
+            await restoreBackupData(data);
+            toast.success('Data berhasil di-restore! Aplikasi akan memuat data terbaru.');
           } catch {
-            toast.error('Import gagal dan rollback gagal. Coba restore dari file backup.');
+            toast.error('Import gagal, data lama tetap dipertahankan');
           }
+          return;
         }
       } catch { toast.error('Gagal membaca file'); }
     };
