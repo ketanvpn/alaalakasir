@@ -133,6 +133,12 @@ export default function TransactionHistory() {
     }
   };
 
+  useEffect(() => {
+    if (selectedTx?.status === 'open') {
+      setRestoreStock(true);
+    }
+  }, [selectedTx?.status]);
+
   const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`;
 
   return (
@@ -412,7 +418,7 @@ export default function TransactionHistory() {
               </div>
 
               {selectedTx.status === 'open' ? (
-                <Button className="w-full h-11" onClick={() => { setDetailOpen(false); navigate('/cashier'); }}>
+                <Button className="w-full h-11" onClick={() => { setDetailOpen(false); navigate(`/cashier?openBillId=${selectedTx.id}`); }}>
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Lanjutkan di Kasir
                 </Button>
@@ -461,9 +467,10 @@ export default function TransactionHistory() {
                     id="restore-stock"
                     checked={restoreStock}
                     onCheckedChange={(checked) => setRestoreStock(checked === true)}
+                    disabled={selectedTx?.status === 'open'}
                   />
-                  <label htmlFor="restore-stock" className="text-sm cursor-pointer">
-                    Kembalikan stok produk
+                  <label htmlFor="restore-stock" className={cn('text-sm', selectedTx?.status === 'open' ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer')}>
+                    {selectedTx?.status === 'open' ? 'Wajib kembalikan stok untuk open bill' : 'Kembalikan stok produk'}
                   </label>
                 </div>
               </div>

@@ -24,8 +24,7 @@ import { ApkInstaller } from '@/lib/apk-installer';
 
 const SUPPORT_QRIS_URL = '/support/qris-ketantech.png';
 const UPDATE_APK_PATH = 'alaalakasir-latest.apk';
-const BUG_REPORT_URL = 'https://github.com/ketanvpn/alaalakasir/issues/new?template=bug_report.md&title=Bug%20v'+CURRENT_APP_VERSION.replace(/^v/i, '')+'%20-%20';
-const FEATURE_REQUEST_URL = 'https://github.com/ketanvpn/alaalakasir/issues/new?template=feature_request.md&title=Fitur%20Baru%20-%20';
+const FEEDBACK_WHATSAPP_NUMBER = '6282397803813';
 
 export default function Pengaturan() {
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
@@ -236,15 +235,6 @@ export default function Pengaturan() {
         throw new Error('File update tidak valid. Coba ulangi download.');
       }
 
-      const downloadedHead = await Filesystem.readFile({
-        path: UPDATE_APK_PATH,
-        directory: Directory.Documents,
-      });
-      const base64Head = typeof downloadedHead.data === 'string' ? downloadedHead.data : '';
-      if (!base64Head.startsWith('UEsDB')) {
-        throw new Error('File yang diunduh bukan APK valid. Coba ulangi atau cek aset rilis.');
-      }
-
       const apkUri = await Filesystem.getUri({ path: UPDATE_APK_PATH, directory: Directory.Documents });
       if (!apkUri.uri) throw new Error('File APK tidak ditemukan setelah download');
 
@@ -345,6 +335,18 @@ export default function Pengaturan() {
     } catch {
       await handleOpenInstallPermissionSettings();
     }
+  };
+
+  const handleSendFeedback = () => {
+    const cleanVersion = CURRENT_APP_VERSION.replace(/^v/i, '');
+    const message = [
+      `Halo, saya mau kirim masukan untuk AlaalaKasir (v${cleanVersion}).`,
+      'Jenis: Bug / Fitur',
+      'Pesan: ',
+    ].join('\n');
+
+    const url = `https://wa.me/${FEEDBACK_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -586,22 +588,13 @@ export default function Pengaturan() {
 
             {/* Feedback & Support */}
             <div className="flex flex-col gap-2 pt-2">
-              <a
-                href={BUG_REPORT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={handleSendFeedback}
                 className="flex items-center justify-center gap-2 w-full h-9 rounded-lg border border-border bg-muted/50 text-xs font-semibold text-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-colors"
               >
-                🐞 Laporkan Bug
-              </a>
-              <a
-                href={FEATURE_REQUEST_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full h-9 rounded-lg border border-border bg-muted/50 text-xs font-semibold text-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-colors"
-              >
-                💡 Request Fitur
-              </a>
+                Kirim Masukan
+              </button>
                <button
                  type="button"
                  onClick={() => setSupportQrisDialog(true)}
@@ -610,7 +603,7 @@ export default function Pengaturan() {
                  💳 Dukung Pengembangan via QRIS
                </button>
               <p className="text-xs text-muted-foreground text-center px-1 pt-1 leading-relaxed">
-                Setiap laporan bug mempercepat perbaikan. Setiap dukungan mempercepat inovasi.
+                Jika AlaalaKasir membantu usaha Anda, dukungan Anda sangat berarti agar aplikasi ini tetap gratis dan terus berkembang.
               </p>
             </div>
            {storageUsage && (

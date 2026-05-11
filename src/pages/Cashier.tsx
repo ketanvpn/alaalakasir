@@ -23,6 +23,8 @@ import { formatThousandsInput, sanitizeNumericInput } from '@/lib/number-input';
 interface CartItem {
   product: Product;
   qty: number;
+  unitPrice: number;
+  unitHpp: number;
   discountType: 'percentage' | 'nominal' | null;
   discountValue: number;
   notes?: string;
@@ -65,13 +67,6 @@ export default function Kasir() {
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
   const openBills = useLiveQuery(() => db.transactions.where('status').equals('open').reverse().sortBy('date'));
 
-  useEffect(() => {
-    if (searchParams.get('openBills') === '1') {
-      setOpenBillsOpen(true);
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
-
   const cartProductIds = new Set(cart.map(c => c.product.id));
 
   const filtered = products?.filter(p => {
@@ -105,7 +100,7 @@ export default function Kasir() {
         }
         return prev.map(c => c.product.id === product.id ? { ...c, qty: c.qty + 1 } : c);
       }
-      return [...prev, { product, qty: 1, discountType: null, discountValue: 0 }];
+      return [...prev, { product, qty: 1, unitPrice: product.price, unitHpp: product.hpp, discountType: null, discountValue: 0 }];
     });
   };
 
@@ -128,7 +123,7 @@ export default function Kasir() {
   };
 
   const getItemSubtotal = (item: CartItem) => {
-    const base = item.product.price * item.qty;
+    const base = item.unitPrice * item.qty;
     if (item.discountType === 'percentage') {
       const discount = Math.min(base, Math.max(0, base * (item.discountValue / 100)));
       return base - discount;
@@ -141,7 +136,7 @@ export default function Kasir() {
   };
 
   const getItemDiscountAmount = (item: CartItem) => {
-    const base = item.product.price * item.qty;
+    const base = item.unitPrice * item.qty;
     if (item.discountType === 'percentage') return Math.min(base, Math.max(0, base * (item.discountValue / 100)));
     if (item.discountType === 'nominal') return Math.min(base, Math.max(0, item.discountValue));
     return 0;
@@ -151,8 +146,8 @@ export default function Kasir() {
     productId: c.product.id!,
     productName: c.product.name,
     quantity: c.qty,
-    price: c.product.price,
-    hpp: c.product.hpp,
+    price: c.unitPrice,
+    hpp: c.unitHpp,
     discountType: c.discountType,
     discountValue: c.discountValue,
     discountAmount: getItemDiscountAmount(c),
@@ -166,7 +161,7 @@ export default function Kasir() {
   const total = Math.max(0, subtotal - txDiscountAmount);
   const paidAmount = Number(paymentAmount) || 0;
   const change = paidAmount - total;
-  const totalHpp = cart.reduce((sum, item) => sum + (item.product.hpp * item.qty), 0);
+  const totalHpp = cart.reduce((sum, item) => sum + (item.unitHpp * item.qty), 0);
   const totalProfit = total - totalHpp;
 
   // === Open Bill Operations ===
@@ -213,6 +208,8 @@ export default function Kasir() {
       return [{
         product,
         qty: item.quantity,
+        unitPrice: item.price,
+        unitHpp: item.hpp,
         discountType: item.discountType as 'percentage' | 'nominal' | null,
         discountValue: item.discountValue,
         notes: item.notes,
@@ -268,6 +265,74 @@ export default function Kasir() {
     setCancelTargetTx(bill);
     setCancelDialogOpen(true);
   };
+
+  useEffect(() => {
+    const openBillsParam = searchParams.get('openBills');
+    if (openBillsParam === '1') {
+      setOpenBillsOpen(true);
+      setSearchParams({}, { replace: true });
+      return;
+    }
+
+    const openBillIdParam = searchParams.get('openBillId');
+    if (!openBillIdParam || !openBills || openBills.length === 0) return;
+    const txId = Number(openBillIdParam);
+    if (!Number.isFinite(txId)) return;
+
+    const targetBill = openBills.find(b => b.id === txId);
+    if (!targetBill) {
+      toast.error('Open bill tidak ditemukan.');
+      setSearchParams({}, { replace: true });
+      return;
+    }
+
+    void loadOpenBill(targetBill);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams, openBills]);
+
+  useEffect(() => {
+    const handleAppBack = (event: Event) => {
+      if (scannerOpen) {
+        setScannerOpen(false);
+        event.preventDefault();
+        return;
+      }
+      if (receiptOpen) {
+        setReceiptOpen(false);
+        event.preventDefault();
+        return;
+      }
+      if (cancelDialogOpen) {
+        setCancelDialogOpen(false);
+        setCancelTargetTx(null);
+        event.preventDefault();
+        return;
+      }
+      if (discountDialogOpen) {
+        setDiscountDialogOpen(false);
+        event.preventDefault();
+        return;
+      }
+      if (checkoutOpen) {
+        setCheckoutOpen(false);
+        event.preventDefault();
+        return;
+      }
+      if (openBillsOpen) {
+        setOpenBillsOpen(false);
+        event.preventDefault();
+        return;
+      }
+      if (cartOpen) {
+        setCartOpen(false);
+        setEditingItemNotes(null);
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('app:backbutton', handleAppBack);
+    return () => window.removeEventListener('app:backbutton', handleAppBack);
+  }, [scannerOpen, receiptOpen, cancelDialogOpen, discountDialogOpen, checkoutOpen, openBillsOpen, cartOpen]);
 
   // === Checkout ===
 
@@ -473,7 +538,7 @@ export default function Kasir() {
                   <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate">{item.product.name}</p>
-                      <p className="text-xs text-muted-foreground">Rp {item.product.price.toLocaleString('id-ID')} × {item.qty}</p>
+                      <p className="text-xs text-muted-foreground">Rp {item.unitPrice.toLocaleString('id-ID')} × {item.qty}</p>
                       <p className="text-sm font-bold text-primary">{rp(getItemSubtotal(item))}</p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -645,7 +710,7 @@ export default function Kasir() {
                   <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate">{item.product.name}</p>
-                      <p className="text-xs text-muted-foreground">Rp {item.product.price.toLocaleString('id-ID')} × {item.qty}</p>
+                      <p className="text-xs text-muted-foreground">Rp {item.unitPrice.toLocaleString('id-ID')} × {item.qty}</p>
                       <p className="text-sm font-bold text-primary">{rp(getItemSubtotal(item))}</p>
                     </div>
                     <div className="flex items-center gap-1">

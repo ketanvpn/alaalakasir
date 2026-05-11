@@ -16,6 +16,13 @@ export interface StockOutInput {
 }
 
 export async function addStockIn(input: StockInInput) {
+  if (!Number.isFinite(input.quantity) || !Number.isInteger(input.quantity) || input.quantity <= 0) {
+    throw new Error('Jumlah stok masuk harus bilangan bulat lebih dari 0');
+  }
+  if (!Number.isFinite(input.buyPrice) || input.buyPrice <= 0) {
+    throw new Error('Harga beli harus lebih dari 0');
+  }
+
   return db.transaction('rw', db.stockIns, db.hppHistory, db.products, async () => {
     const product = await db.products.get(input.productId);
     if (!product) throw new Error('Produk tidak ditemukan');
@@ -58,6 +65,10 @@ export async function addStockIn(input: StockInInput) {
 }
 
 export async function addStockOut(input: StockOutInput) {
+  if (!Number.isFinite(input.quantity) || !Number.isInteger(input.quantity) || input.quantity <= 0) {
+    throw new Error('Jumlah stok keluar harus bilangan bulat lebih dari 0');
+  }
+
   return db.transaction('rw', db.stockOuts, db.products, async () => {
     const product = await db.products.get(input.productId);
     if (!product) throw new Error('Produk tidak ditemukan');

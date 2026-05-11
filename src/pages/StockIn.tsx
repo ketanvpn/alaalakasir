@@ -43,8 +43,8 @@ export default function StockInPage() {
   const handleSave = async () => {
     const qty = Number(quantity);
     const price = Number(buyPrice);
-    if (!productId || !supplierId || qty <= 0 || price <= 0) {
-      toast.error('Lengkapi semua field');
+    if (!productId || !supplierId || !Number.isFinite(qty) || !Number.isInteger(qty) || qty <= 0 || !Number.isFinite(price) || price <= 0) {
+      toast.error('Lengkapi semua field dengan benar (jumlah harus bilangan bulat).');
       return;
     }
 

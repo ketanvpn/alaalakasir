@@ -254,7 +254,8 @@ export async function deleteTransaction(transactionId: number, restoreStock: boo
     if (!transaction) throw new Error('Transaksi tidak ditemukan');
 
     const items = await db.transactionItems.where('transactionId').equals(transactionId).toArray();
-    if (restoreStock) {
+    const mustRestoreStock = restoreStock || transaction.status === 'open';
+    if (mustRestoreStock) {
       await applyReservedStockChange([], items);
     }
 

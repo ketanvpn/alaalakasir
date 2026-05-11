@@ -38,6 +38,12 @@ const App = () => {
 
     const setupBackButtonHandler = async () => {
       const listener = await CapacitorApp.addListener("backButton", ({ canGoBack }) => {
+        const backEvent = new CustomEvent("app:backbutton", { cancelable: true });
+        const shouldContinue = window.dispatchEvent(backEvent);
+        if (!shouldContinue) {
+          return;
+        }
+
         if (canGoBack) {
           window.history.back();
           return;
