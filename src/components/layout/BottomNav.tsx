@@ -16,10 +16,12 @@ export default function BottomNav() {
 
   useEffect(() => {
     const viewport = window.visualViewport;
-    const keyboardThreshold = 120;
+    const keyboardThreshold = 140;
+    let baselineHeight = window.innerHeight;
+    let lastKeyboardState = false;
 
-    const setAppHeight = () => {
-      document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+    const setAppHeight = (height: number) => {
+      document.documentElement.style.setProperty('--app-height', `${height}px`);
     };
 
     const setKeyboardClass = (open: boolean) => {
@@ -28,13 +30,24 @@ export default function BottomNav() {
     };
 
     const updateKeyboardState = () => {
-      const viewportHeight = viewport?.height ?? window.innerHeight;
-      const heightDiff = window.innerHeight - viewportHeight;
-      const isOpen = heightDiff > keyboardThreshold;
+      const currentInnerHeight = window.innerHeight;
+      if (!lastKeyboardState) {
+        baselineHeight = Math.max(baselineHeight, currentInnerHeight);
+      }
 
+      const viewportHeight = viewport?.height ?? currentInnerHeight;
+      const visualViewportDiff = currentInnerHeight - viewportHeight;
+      const baselineDiff = baselineHeight - currentInnerHeight;
+      const isOpen = visualViewportDiff > keyboardThreshold || baselineDiff > keyboardThreshold;
+
+      if (!isOpen) {
+        baselineHeight = Math.max(baselineHeight, currentInnerHeight);
+        setAppHeight(baselineHeight);
+      }
+
+      lastKeyboardState = isOpen;
       setKeyboardOpen(isOpen);
       setKeyboardClass(isOpen);
-      if (!isOpen) setAppHeight();
     };
 
     const isTextInput = (target: EventTarget | null): boolean => {
@@ -56,13 +69,15 @@ export default function BottomNav() {
         const active = document.activeElement;
         if (!isTextInput(active)) {
           setKeyboardOpen(false);
+          lastKeyboardState = false;
           setKeyboardClass(false);
-          setAppHeight();
+          baselineHeight = Math.max(baselineHeight, window.innerHeight);
+          setAppHeight(baselineHeight);
         }
       }, 0);
     };
 
-    setAppHeight();
+    setAppHeight(baselineHeight);
     updateKeyboardState();
     viewport?.addEventListener('resize', updateKeyboardState);
     window.addEventListener('resize', updateKeyboardState);

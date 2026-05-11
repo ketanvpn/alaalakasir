@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { compressImage } from '@/lib/image-utils';
 import { CURRENT_APP_VERSION, checkForAppUpdate, type AppUpdateInfo } from '@/lib/update-check';
 import { backupHasData, exportBackupData, isBackupData, restoreBackupData } from '@/lib/services/backupService';
+import { ApkInstaller } from '@/lib/apk-installer';
 
 const SUPPORT_QRIS_URL = '/support/qris-ketantech.png';
 const UPDATE_APK_PATH = 'alaalakasir-latest.apk';
@@ -268,6 +269,23 @@ export default function Pengaturan() {
       return;
     }
 
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+      try {
+        const result = await ApkInstaller.install({ path: downloadedApkUri });
+        if (result.permissionRequired) {
+          toast.info('Aktifkan izin install dari aplikasi ini, lalu kembali dan tekan Install lagi.');
+          await ApkInstaller.openInstallPermissionSettings();
+          return;
+        }
+        toast.info('Lanjutkan proses install di layar Android.');
+        return;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Belum bisa membuka installer langsung.';
+        toast.error(`${message} Coba cara File Manager.`);
+        return;
+      }
+    }
+
     try {
       await FileOpener.openFile({
         path: downloadedApkUri,
@@ -301,6 +319,12 @@ export default function Pengaturan() {
 
   const handleOpenInstallPermissionSettings = async () => {
     try {
+      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+        await ApkInstaller.openInstallPermissionSettings();
+        toast.info('Aktifkan izin install dari aplikasi ini, lalu kembali ke AlaalaKasir.');
+        return;
+      }
+
       await NativeSettings.open({
         optionAndroid: AndroidSettings.ApplicationDetails,
         optionIOS: IOSSettings.App,
@@ -517,18 +541,18 @@ export default function Pengaturan() {
                         variant="default"
                         size="sm"
                         className="h-8 text-xs"
-                        onClick={handleInstallViaFileManager}
+                        onClick={handleInstallDownloadedApkDirect}
                       >
-                        Buka File Manager
+                        Install Update
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         className="h-8 text-xs"
-                        onClick={handleInstallDownloadedApkDirect}
+                        onClick={handleInstallViaFileManager}
                       >
-                        Coba Cara Lain
+                        Buka File Manager
                       </Button>
                       <p className="text-[10px] text-muted-foreground">
                         Update siap dipasang: {downloadedApkName ?? 'alaalakasir-latest.apk'}
@@ -536,7 +560,7 @@ export default function Pengaturan() {
                     </div>
                   )}
                   <p className="text-[10px] text-muted-foreground">
-                    Alur disarankan: Buka File Manager - pilih APK - Install.
+                    Jika Android meminta izin, aktifkan "Izinkan dari sumber ini", lalu kembali dan tekan Install Update lagi.
                   </p>
                   <Button
                     type="button"
@@ -636,16 +660,16 @@ export default function Pengaturan() {
           <div className="space-y-3 text-sm">
             <p className="text-xs text-muted-foreground">File update sudah tersimpan di HP Anda.</p>
             <div className="rounded-lg border bg-muted/40 p-3 space-y-1.5 text-xs">
-              <p>1. Buka File Manager</p>
-              <p>2. Pilih file: {downloadedApkName ?? 'alaalakasir-latest.apk'}</p>
-              <p>3. Tekan Install</p>
-              <p>4. Jika diminta izin, aktifkan lalu kembali lagi</p>
+              <p>1. Tekan Install Update</p>
+              <p>2. Jika diminta izin, aktifkan "Izinkan dari sumber ini"</p>
+              <p>3. Kembali ke aplikasi, lalu tekan Install Update lagi</p>
+              <p>4. Jika masih gagal, buka lewat File Manager: {downloadedApkName ?? 'alaalakasir-latest.apk'}</p>
             </div>
-            <Button type="button" className="w-full h-9 text-xs" onClick={handleInstallViaFileManager}>
-              Buka File Manager
+            <Button type="button" className="w-full h-9 text-xs" onClick={handleInstallDownloadedApkDirect}>
+              Install Update
             </Button>
-            <Button type="button" variant="outline" className="w-full h-9 text-xs" onClick={handleInstallDownloadedApkDirect}>
-              Coba Cara Lain
+            <Button type="button" variant="outline" className="w-full h-9 text-xs" onClick={handleInstallViaFileManager}>
+              Buka File Manager
             </Button>
             <Button type="button" variant="ghost" className="w-full h-9 text-xs text-muted-foreground" onClick={handleOpenInstallPermissionSettings}>
               Buka Pengaturan Izin
