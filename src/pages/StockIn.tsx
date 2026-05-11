@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { addStockIn } from '@/lib/services/stockService';
+import { formatThousandsInput, sanitizeNumericInput } from '@/lib/number-input';
 
 export default function StockInPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -148,7 +149,14 @@ export default function StockInPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Harga Beli/Unit *</Label>
-                <Input type="number" value={buyPrice} onChange={e => setBuyPrice(e.target.value)} placeholder="5000" className="h-11" />
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={formatThousandsInput(buyPrice)}
+                  onChange={e => setBuyPrice(sanitizeNumericInput(e.target.value))}
+                  placeholder="5.000"
+                  className="h-11"
+                />
               </div>
             </div>
             {quantity && buyPrice && (

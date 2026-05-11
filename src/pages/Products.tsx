@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { compressImage } from '@/lib/image-utils';
 import { toast } from 'sonner';
+import { formatThousandsInput, sanitizeNumericInput } from '@/lib/number-input';
 
 export default function Produk() {
   const [search, setSearch] = useState('');
@@ -294,11 +295,25 @@ export default function Produk() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Harga Jual *</Label>
-                <Input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="15000" className="h-11" />
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={formatThousandsInput(price)}
+                  onChange={e => setPrice(sanitizeNumericInput(e.target.value))}
+                  placeholder="15.000"
+                  className="h-11"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>HPP</Label>
-                <Input type="number" value={hpp} onChange={e => setHpp(e.target.value)} placeholder="10000" className="h-11" />
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={formatThousandsInput(hpp)}
+                  onChange={e => setHpp(sanitizeNumericInput(e.target.value))}
+                  placeholder="10.000"
+                  className="h-11"
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">

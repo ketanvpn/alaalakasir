@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { cancelOpenBill as cancelOpenBillTx, checkoutSale, saveOpenBill as saveOpenBillTx } from '@/lib/services/salesService';
+import { formatThousandsInput, sanitizeNumericInput } from '@/lib/number-input';
 
 interface CartItem {
   product: Product;
@@ -874,6 +875,17 @@ export default function Kasir() {
               <div className="h-12 flex items-center justify-center rounded-md border border-input bg-background text-lg font-bold text-center px-3">
                 {paidAmount > 0 ? `Rp ${paidAmount.toLocaleString('id-ID')}` : 'Rp 0'}
               </div>
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={formatThousandsInput(paymentAmount)}
+                onChange={e => {
+                  setPaymentAmount(sanitizeNumericInput(e.target.value));
+                  setIsQuickAdding(false);
+                }}
+                placeholder="Ketik nominal, contoh: 50.000"
+                className="h-10 text-sm text-center font-semibold"
+              />
               <div className="flex flex-wrap gap-1.5">
                 {[1000, 2000, 5000, 10000, 20000, 50000, 100000].map(nom => (
                   <button
@@ -978,10 +990,17 @@ export default function Kasir() {
             <div className="space-y-1.5">
               <p className="text-sm font-medium">{tempDiscountType === 'percentage' ? 'Persentase Diskon' : 'Jumlah Diskon'}</p>
               <Input
-                type="number"
-                value={tempDiscountValue}
-                onChange={e => setTempDiscountValue(e.target.value)}
-                placeholder={tempDiscountType === 'percentage' ? 'Contoh: 10' : 'Contoh: 5000'}
+                type="text"
+                inputMode="numeric"
+                value={tempDiscountType === 'nominal' ? formatThousandsInput(tempDiscountValue) : tempDiscountValue}
+                onChange={e => {
+                  if (tempDiscountType === 'nominal') {
+                    setTempDiscountValue(sanitizeNumericInput(e.target.value));
+                    return;
+                  }
+                  setTempDiscountValue(sanitizeNumericInput(e.target.value));
+                }}
+                placeholder={tempDiscountType === 'percentage' ? 'Contoh: 10' : 'Contoh: 5.000'}
                 className="h-12 text-lg font-bold text-center"
               />
               {tempDiscountType === 'percentage' && Number(tempDiscountValue) > 0 && (
