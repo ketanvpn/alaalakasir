@@ -9,6 +9,7 @@ import { id } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import BackupReminder from '@/components/BackupReminder';
 import { exportBackupData, shouldShowBackupReminder } from '@/lib/services/backupService';
+import { calculateSalesDeltaPercent, getCompletedTransactionsBetween, getRecentCompletedTransactions } from '@/lib/services/dashboardService';
 
 const startOfDay = (date: Date) => {
   const d = new Date(date);
@@ -52,10 +53,7 @@ export default function Dashboard() {
   const yesterday = addDays(today, -1);
 
   const todayTransactions = useLiveQuery(async () => {
-    return db.transactions
-      .where('[status+date]')
-      .between(['completed', today], ['completed', tomorrow], true, false)
-      .toArray();
+    return getCompletedTransactionsBetween(today, tomorrow);
   }, [today.getTime()]);
 
   const openBillsCount = useLiveQuery(async () => {
@@ -65,12 +63,7 @@ export default function Dashboard() {
   const lowStockProducts = useLiveQuery(() => db.products.filter(p => p.isDeleted === 0 && p.stock <= 5).toArray());
 
   const recentTransactions = useLiveQuery(async () => {
-    return db.transactions
-      .where('[status+date]')
-      .between(['completed', new Date(0)], ['completed', new Date(8640000000000000)], true, true)
-      .reverse()
-      .limit(5)
-      .toArray();
+    return getRecentCompletedTransactions(5);
   });
 
   // Query items for recent transactions
@@ -89,10 +82,7 @@ export default function Dashboard() {
   const paymentMethods = useLiveQuery(() => db.paymentMethods.toArray());
 
   const yesterdayTransactions = useLiveQuery(async () => {
-    return db.transactions
-      .where('[status+date]')
-      .between(['completed', yesterday], ['completed', today], true, false)
-      .toArray();
+    return getCompletedTransactionsBetween(yesterday, today);
   }, [today.getTime()]);
 
   // Show onboarding if not done yet
@@ -109,12 +99,7 @@ export default function Dashboard() {
   const txCount = todayTransactions?.length ?? 0;
   const yesterdaySales = yesterdayTransactions?.reduce((sum, t) => sum + t.total, 0) ?? 0;
 
-  const salesDeltaPercent =
-    yesterdaySales > 0
-      ? Math.round(((totalSales - yesterdaySales) / yesterdaySales) * 100)
-      : totalSales > 0
-        ? 100
-        : 0;
+  const salesDeltaPercent = calculateSalesDeltaPercent(totalSales, yesterdaySales);
 
   const showBackup = !backupDismissed && storeSettings && shouldShowBackupReminder(storeSettings.lastBackupAt);
 

@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
 import AppLayout from "./components/layout/AppLayout";
+import BrandLoading from "./components/BrandLoading";
 
 const queryClient = new QueryClient();
 
@@ -23,11 +24,7 @@ const StockReport = lazy(() => import("./pages/StockReport"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function RouteFallback() {
-  return (
-    <div className="min-h-[50vh] flex items-center justify-center px-6">
-      <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-    </div>
-  );
+  return <BrandLoading compact message="Membuka halaman..." />;
 }
 
 const App = () => {

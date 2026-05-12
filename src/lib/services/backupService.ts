@@ -20,6 +20,19 @@ export interface BackupData {
   storeSettings?: BackupRecord[];
 }
 
+const BACKUP_TABLE_KEYS: Array<keyof BackupData> = [
+  'categories',
+  'products',
+  'suppliers',
+  'stockIns',
+  'stockOuts',
+  'hppHistory',
+  'paymentMethods',
+  'transactions',
+  'transactionItems',
+  'storeSettings',
+];
+
 export function shouldShowBackupReminder(lastBackupAt: Date | null): boolean {
   if (!lastBackupAt) return true;
   const hoursSince = (Date.now() - lastBackupAt.getTime()) / (1000 * 60 * 60);
@@ -44,45 +57,50 @@ function downloadBackupInBrowser(fileName: string, json: string) {
 }
 
 export async function exportBackupData() {
-  const data = {
-    version: 2,
-    exportedAt: new Date().toISOString(),
-    categories: await db.categories.toArray(),
-    products: await db.products.toArray(),
-    suppliers: await db.suppliers.toArray(),
-    stockIns: await db.stockIns.toArray(),
-    stockOuts: await db.stockOuts.toArray(),
-    hppHistory: await db.hppHistory.toArray(),
-    paymentMethods: await db.paymentMethods.toArray(),
-    transactions: await db.transactions.toArray(),
-    transactionItems: await db.transactionItems.toArray(),
-    storeSettings: await db.storeSettings.toArray(),
-  };
+  try {
+    const data = {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      categories: await db.categories.toArray(),
+      products: await db.products.toArray(),
+      suppliers: await db.suppliers.toArray(),
+      stockIns: await db.stockIns.toArray(),
+      stockOuts: await db.stockOuts.toArray(),
+      hppHistory: await db.hppHistory.toArray(),
+      paymentMethods: await db.paymentMethods.toArray(),
+      transactions: await db.transactions.toArray(),
+      transactionItems: await db.transactionItems.toArray(),
+      storeSettings: await db.storeSettings.toArray(),
+    };
 
-  const fileName = `alaalakasir-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  const json = JSON.stringify(data, null, 2);
+    const fileName = `alaalakasir-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const json = JSON.stringify(data, null, 2);
 
-  if (Capacitor.isNativePlatform()) {
-    const writeResult = await Filesystem.writeFile({
-      path: fileName,
-      data: json,
-      directory: Directory.Cache,
-      encoding: 'utf8',
-    });
+    if (Capacitor.isNativePlatform()) {
+      const writeResult = await Filesystem.writeFile({
+        path: fileName,
+        data: json,
+        directory: Directory.Cache,
+        encoding: 'utf8',
+      });
 
-    await Share.share({
-      title: 'Backup AlaalaKasir',
-      text: 'Simpan file backup JSON ini di tempat aman, misalnya Google Drive atau folder Downloads.',
-      url: writeResult.uri,
-      dialogTitle: 'Simpan atau bagikan backup',
-    });
-    toast.success('Backup dibuat. Pilih lokasi simpan dari menu Android.');
-  } else {
-    downloadBackupInBrowser(fileName, json);
-    toast.success('Backup diunduh sebagai file JSON');
+      await Share.share({
+        title: 'Backup AlaalaKasir',
+        text: 'Simpan file backup JSON ini di tempat aman, misalnya Google Drive atau folder Downloads.',
+        url: writeResult.uri,
+        dialogTitle: 'Simpan atau bagikan backup',
+      });
+      toast.success('Backup dibuat. Pilih lokasi simpan dari menu Android.');
+    } else {
+      downloadBackupInBrowser(fileName, json);
+      toast.success('Backup diunduh sebagai file JSON');
+    }
+
+    await saveBackupTimestamp();
+  } catch {
+    toast.error('Gagal membuat backup');
+    throw new Error('Backup export failed');
   }
-
-  await saveBackupTimestamp();
 }
 
 const restoreTables = [
@@ -113,8 +131,17 @@ async function clearAllTables() {
 
 export function isBackupData(value: unknown): value is BackupData {
   if (!value || typeof value !== 'object') return false;
-  const data = value as { version?: unknown };
-  return typeof data.version === 'number';
+  const data = value as Record<string, unknown>;
+  if (typeof data.version !== 'number') return false;
+
+  for (const key of BACKUP_TABLE_KEYS) {
+    const tableData = data[key];
+    if (tableData !== undefined && !Array.isArray(tableData)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export function backupHasData(data: BackupData) {
@@ -124,7 +151,37 @@ export function backupHasData(data: BackupData) {
   });
 }
 
+function hasRequiredFields(record: BackupRecord, requiredKeys: string[]) {
+  return requiredKeys.every((key) => record[key] !== undefined && record[key] !== null);
+}
+
+function validateBackupDataShape(data: BackupData) {
+  const tableValidators: Partial<Record<keyof BackupData, string[]>> = {
+    categories: ['name', 'color', 'icon'],
+    products: ['name', 'sku', 'categoryId', 'price', 'hpp', 'stock', 'unit'],
+    suppliers: ['name'],
+    stockIns: ['productId', 'supplierId', 'quantity', 'buyPrice', 'totalPrice', 'date'],
+    stockOuts: ['productId', 'quantity', 'reason', 'date'],
+    hppHistory: ['productId', 'oldHpp', 'newHpp', 'source', 'date'],
+    paymentMethods: ['name', 'category', 'isDefault', 'createdAt'],
+    transactions: ['subtotal', 'total', 'paymentMethodId', 'paymentAmount', 'change', 'profit', 'date', 'receiptNumber', 'status'],
+    transactionItems: ['transactionId', 'productId', 'productName', 'quantity', 'price', 'hpp', 'subtotal'],
+    storeSettings: ['storeName', 'address', 'phone', 'receiptFooter', 'onboardingDone', 'deviceId'],
+  };
+
+  for (const [tableName, keys] of Object.entries(tableValidators) as Array<[keyof BackupData, string[]]>) {
+    const rows = data[tableName];
+    if (!rows) continue;
+    const invalidRow = rows.find((row) => !row || typeof row !== 'object' || !hasRequiredFields(row, keys));
+    if (invalidRow) {
+      throw new Error(`Format backup tidak valid pada tabel: ${tableName}`);
+    }
+  }
+}
+
 export async function restoreBackupData(data: BackupData) {
+  validateBackupDataShape(data);
+
   await db.transaction('rw', restoreTables, async () => {
     await clearAllTables();
 
@@ -143,7 +200,7 @@ export async function restoreBackupData(data: BackupData) {
       return;
     }
 
-    if (data.version === 1 && data.transactions?.length) {
+    if (data.transactions?.length) {
       const itemRecords = data.transactions.flatMap(transaction => {
         const items = transaction.items;
         const transactionId = transaction.id;

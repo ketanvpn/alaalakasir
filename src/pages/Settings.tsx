@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type PaymentMethod, type Category } from '@/lib/db';
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Store, CreditCard, Tag, Download, Upload, Plus, Trash2, Edit2, Info, Truck, ArrowDownToLine, ArrowUpFromLine, ChevronRight, Receipt, Palette, HardDrive, Package, Camera, X } from 'lucide-react';
+import { Settings, Store, CreditCard, Tag, Download, Upload, Plus, Trash2, Edit2, Truck, ArrowDownToLine, ArrowUpFromLine, ChevronRight, Receipt, Palette, HardDrive, Package, Camera, X } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { FileOpener } from '@capawesome-team/capacitor-file-opener';
@@ -15,11 +15,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { compressImage } from '@/lib/image-utils';
 import { CURRENT_APP_VERSION, checkForAppUpdate, type AppUpdateInfo } from '@/lib/update-check';
 import { backupHasData, exportBackupData, isBackupData, restoreBackupData } from '@/lib/services/backupService';
+import { canDeleteCategory, canDeletePaymentMethod } from '@/lib/services/settingsService';
 import { ApkInstaller } from '@/lib/apk-installer';
 
 const SUPPORT_QRIS_URL = '/support/qris-ketantech.png';
@@ -30,6 +31,33 @@ export default function Pengaturan() {
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
   const paymentMethods = useLiveQuery(() => db.paymentMethods.toArray());
   const categories = useLiveQuery(() => db.categories.where('isDeleted').equals(0).toArray());
+  const paymentMethodUsage = useLiveQuery(async () => {
+    const methods = await db.paymentMethods.toArray();
+    const transactions = await db.transactions.toArray();
+    const usageMap: Record<number, number> = {};
+
+    for (const method of methods) {
+      if (!method.id) continue;
+      usageMap[method.id] = 0;
+    }
+
+    for (const tx of transactions) {
+      const key = tx.paymentMethodId;
+      usageMap[key] = (usageMap[key] ?? 0) + 1;
+    }
+
+    return usageMap;
+  });
+  const categoryActiveUsage = useLiveQuery(async () => {
+    const products = await db.products.where('isDeleted').equals(0).toArray();
+    const usageMap: Record<number, number> = {};
+
+    for (const product of products) {
+      usageMap[product.categoryId] = (usageMap[product.categoryId] ?? 0) + 1;
+    }
+
+    return usageMap;
+  });
 
   // Store edit
   const [storeDialog, setStoreDialog] = useState(false);
@@ -61,6 +89,9 @@ export default function Pengaturan() {
   const [downloadedApkName, setDownloadedApkName] = useState<string | null>(null);
   const [updateInstallDialog, setUpdateInstallDialog] = useState(false);
   const [supportQrisDialog, setSupportQrisDialog] = useState(false);
+  const [importingBackup, setImportingBackup] = useState(false);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [pendingBackupData, setPendingBackupData] = useState<unknown>(null);
   useEffect(() => {
     if (navigator.storage?.estimate) {
       navigator.storage.estimate().then(est => {
@@ -78,6 +109,11 @@ export default function Pengaturan() {
   };
 
   const saveStore = async () => {
+    if (!storeName.trim()) {
+      toast.error('Nama toko wajib diisi');
+      return;
+    }
+
     if (storeSettings?.id) {
       await db.storeSettings.update(storeSettings.id, { storeName: storeName.trim(), address: storeAddr.trim(), phone: storePhone.trim(), logo: storeLogo || undefined });
       toast.success('Info toko disimpan');
@@ -110,7 +146,21 @@ export default function Pengaturan() {
     setPmDialog(false);
     toast.success('Metode pembayaran disimpan');
   };
-  const deletePm = async (id: number) => { await db.paymentMethods.delete(id); toast.success('Dihapus'); };
+  const deletePm = async (id: number) => {
+    const check = await canDeletePaymentMethod(id);
+    if (!check.ok && check.reason === 'last_method') {
+      toast.error('Minimal harus ada 1 metode pembayaran');
+      return;
+    }
+
+    if (!check.ok && check.reason === 'already_used') {
+      toast.error('Metode pembayaran ini sudah dipakai transaksi dan tidak bisa dihapus');
+      return;
+    }
+
+    await db.paymentMethods.delete(id);
+    toast.success('Dihapus');
+  };
 
   const openCatAdd = () => { setCatEditId(null); setCatName(''); setCatIcon('📦'); setCatColor('#FF6B35'); setCatDialog(true); };
   const openCatEdit = (c: Category) => { setCatEditId(c.id!); setCatName(c.name); setCatIcon(c.icon); setCatColor(c.color); setCatDialog(true); };
@@ -121,15 +171,26 @@ export default function Pengaturan() {
     setCatDialog(false);
     toast.success('Kategori disimpan');
   };
-  const deleteCat = async (id: number) => { await db.categories.update(id, { isDeleted: 1, deletedAt: new Date() }); toast.success('Dihapus'); };
+  const deleteCat = async (id: number) => {
+    const check = await canDeleteCategory(id);
+    if (!check.ok && check.reason === 'has_active_products') {
+      toast.error('Kategori masih dipakai produk aktif dan tidak bisa dihapus');
+      return;
+    }
+
+    await db.categories.update(id, { isDeleted: 1, deletedAt: new Date() });
+    toast.success('Dihapus');
+  };
 
   const handleImport = () => {
+    if (importingBackup) return;
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json,application/json';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
+      setImportingBackup(true);
       try {
         const text = await file.text();
         if (!text.trim()) { toast.error('File kosong'); return; }
@@ -137,18 +198,38 @@ export default function Pengaturan() {
           const data: unknown = JSON.parse(text);
           if (!isBackupData(data)) { toast.error('File tidak valid'); return; }
           if (!backupHasData(data)) { toast.error('File backup tidak berisi data'); return; }
-
-          try {
-            await restoreBackupData(data);
-            toast.success('Data berhasil di-restore! Aplikasi akan memuat data terbaru.');
-          } catch {
-            toast.error('Import gagal, data lama tetap dipertahankan');
-          }
+          setPendingBackupData(data);
+          setRestoreConfirmOpen(true);
           return;
         }
       } catch { toast.error('Gagal membaca file'); }
+      finally {
+        setImportingBackup(false);
+      }
     };
     input.click();
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!pendingBackupData || !isBackupData(pendingBackupData)) {
+      toast.error('Data backup tidak valid');
+      setRestoreConfirmOpen(false);
+      return;
+    }
+
+    setImportingBackup(true);
+    try {
+      await restoreBackupData(pendingBackupData);
+      setRestoreConfirmOpen(false);
+      setPendingBackupData(null);
+      toast.success('Data berhasil di-restore! Aplikasi akan dimuat ulang.');
+      setTimeout(() => window.location.reload(), 250);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Import gagal';
+      toast.error(`${message}. Data lama tetap dipertahankan`);
+    } finally {
+      setImportingBackup(false);
+    }
   };
 
   const emojiOptions = ['📦', '🍕', '🥤', '🍜', '🧃', '🎽', '💊', '🧹', '📱', '🛒', '🎁', '✂️'];
@@ -349,6 +430,22 @@ export default function Pengaturan() {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  const getPaymentMethodDeleteBlockReason = (id: number) => {
+    if (!paymentMethods) return null;
+    if (paymentMethods.length <= 1) return 'Minimal harus ada 1 metode pembayaran';
+    if ((paymentMethodUsage?.[id] ?? 0) > 0) {
+      return 'Sudah dipakai transaksi';
+    }
+    return null;
+  };
+
+  const getCategoryDeleteBlockReason = (id: number) => {
+    if ((categoryActiveUsage?.[id] ?? 0) > 0) {
+      return 'Masih dipakai produk aktif';
+    }
+    return null;
+  };
+
   return (
     <div className="px-4 pt-6 pb-4 space-y-5">
       <h1 className="text-xl font-bold flex items-center gap-2">
@@ -441,10 +538,22 @@ export default function Pengaturan() {
               </div>
               <div className="flex gap-1">
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPmEdit(pm)}><Edit2 className="w-3 h-3" /></Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deletePm(pm.id!)}><Trash2 className="w-3 h-3" /></Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  onClick={() => deletePm(pm.id!)}
+                  disabled={!!getPaymentMethodDeleteBlockReason(pm.id!)}
+                  title={getPaymentMethodDeleteBlockReason(pm.id!) ?? 'Hapus metode pembayaran'}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
               </div>
             </div>
           ))}
+          <p className="text-[10px] text-muted-foreground pt-1">
+            Metode pembayaran tidak bisa dihapus jika tinggal satu atau sudah dipakai transaksi.
+          </p>
         </CardContent>
       </Card>
 
@@ -465,10 +574,22 @@ export default function Pengaturan() {
               </div>
               <div className="flex gap-1">
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openCatEdit(c)}><Edit2 className="w-3 h-3" /></Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteCat(c.id!)}><Trash2 className="w-3 h-3" /></Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  onClick={() => deleteCat(c.id!)}
+                  disabled={!!getCategoryDeleteBlockReason(c.id!)}
+                  title={getCategoryDeleteBlockReason(c.id!) ?? 'Hapus kategori'}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
               </div>
             </div>
           ))}
+          <p className="text-[10px] text-muted-foreground pt-1">
+            Kategori tidak bisa dihapus jika masih dipakai produk aktif.
+          </p>
         </CardContent>
       </Card>
 
@@ -494,8 +615,13 @@ export default function Pengaturan() {
           <Button variant="outline" className="w-full h-10 text-sm gap-2" onClick={exportBackupData}>
             <Download className="w-4 h-4" /> Export Backup (JSON)
           </Button>
-          <Button variant="outline" className="w-full h-10 text-sm gap-2" onClick={handleImport}>
-            <Upload className="w-4 h-4" /> Import / Restore Data
+          <Button
+            variant="outline"
+            className="w-full h-10 text-sm gap-2"
+            onClick={handleImport}
+            disabled={importingBackup}
+          >
+            <Upload className="w-4 h-4" /> {importingBackup ? 'Memproses Restore...' : 'Import / Restore Data'}
           </Button>
           {storeSettings?.lastBackupAt && (
             <p className="text-[10px] text-muted-foreground text-center">Terakhir backup: {new Date(storeSettings.lastBackupAt).toLocaleString('id-ID')}</p>
@@ -644,6 +770,31 @@ export default function Pengaturan() {
           </p>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={restoreConfirmOpen}
+        onOpenChange={(open) => {
+          setRestoreConfirmOpen(open);
+          if (!open && !importingBackup) {
+            setPendingBackupData(null);
+          }
+        }}
+      >
+        <AlertDialogContent className="max-w-[90vw] rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore Data Backup?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Restore akan menimpa data aplikasi saat ini dengan data dari file backup. Pastikan Anda sudah memilih file yang benar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={importingBackup}>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRestore} disabled={importingBackup}>
+              {importingBackup ? 'Memproses Restore...' : 'Lanjut Restore'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={updateInstallDialog} onOpenChange={setUpdateInstallDialog}>
         <DialogContent className="max-w-[95vw] sm:max-w-md rounded-xl p-4">

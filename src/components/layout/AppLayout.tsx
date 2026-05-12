@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import BottomNav from './BottomNav';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import Onboarding from '@/components/Onboarding';
+import BrandLoading from '@/components/BrandLoading';
 
 export default function AppLayout() {
   useThemeColor(); // Apply saved theme color on mount
@@ -17,7 +18,7 @@ export default function AppLayout() {
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
 
   // Loading state
-  if (storeSettings === undefined) return null;
+  if (storeSettings === undefined) return <BrandLoading message="Menyiapkan data toko..." />;
 
   // Show onboarding if not done yet
   if (!storeSettings || !storeSettings.onboardingDone) {
