@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type TransactionItemRecord } from '@/lib/db';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TrendingUp, AlertTriangle, Receipt, ChevronRight, ClipboardList, ArrowDownToLine, ArrowUpFromLine, Truck, ShoppingCart, Package } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
@@ -13,6 +13,12 @@ import { exportBackupData, shouldShowBackupReminder } from '@/lib/services/backu
 const startOfDay = (date: Date) => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const addDays = (date: Date, days: number) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
   return d;
 };
 
@@ -29,28 +35,42 @@ const formatRelativeTime = (date: Date) => {
 
 export default function Dashboard() {
   const [backupDismissed, setBackupDismissed] = useState(false);
+  const [now, setNow] = useState(() => new Date());
 
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
 
-  const today = startOfDay(new Date());
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(new Date());
+    }, 60_000);
 
-  const todayTransactions = useLiveQuery(async () => {
-    const all = await db.transactions.where('date').aboveOrEqual(today).toArray();
-    return all.filter(t => t.status !== 'open');
+    return () => window.clearInterval(timer);
   }, []);
 
+  const today = startOfDay(now);
+  const tomorrow = addDays(today, 1);
+  const yesterday = addDays(today, -1);
+
+  const todayTransactions = useLiveQuery(async () => {
+    return db.transactions
+      .where('[status+date]')
+      .between(['completed', today], ['completed', tomorrow], true, false)
+      .toArray();
+  }, [today.getTime()]);
+
   const openBillsCount = useLiveQuery(async () => {
-    const open = await db.transactions.where('status').equals('open').toArray();
-    return open.length;
+    return db.transactions.where('status').equals('open').count();
   }, []);
 
   const lowStockProducts = useLiveQuery(() => db.products.filter(p => p.isDeleted === 0 && p.stock <= 5).toArray());
 
   const recentTransactions = useLiveQuery(async () => {
-    const recent = await db.transactions.orderBy('date').reverse().toArray();
-    return recent.filter(t => t.status !== 'open').slice(0, 5);
+    return db.transactions
+      .where('[status+date]')
+      .between(['completed', new Date(0)], ['completed', new Date(8640000000000000)], true, true)
+      .reverse()
+      .limit(5)
+      .toArray();
   });
 
   // Query items for recent transactions
@@ -69,12 +89,20 @@ export default function Dashboard() {
   const paymentMethods = useLiveQuery(() => db.paymentMethods.toArray());
 
   const yesterdayTransactions = useLiveQuery(async () => {
-    const all = await db.transactions.where('date').between(yesterday, today, true, false).toArray();
-    return all.filter(t => t.status !== 'open');
+    return db.transactions
+      .where('[status+date]')
+      .between(['completed', yesterday], ['completed', today], true, false)
+      .toArray();
   }, [today.getTime()]);
 
   // Show onboarding if not done yet
-  if (storeSettings === undefined) return null; // loading
+  if (storeSettings === undefined) {
+    return (
+      <div className="px-4 pt-6">
+        <p className="text-sm text-muted-foreground">Memuat beranda...</p>
+      </div>
+    );
+  }
 
   const totalSales = todayTransactions?.reduce((sum, t) => sum + t.total, 0) ?? 0;
   const totalProfit = todayTransactions?.reduce((sum, t) => sum + t.profit, 0) ?? 0;

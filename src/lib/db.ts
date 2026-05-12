@@ -324,6 +324,20 @@ class PosDatabase extends Dexie {
         }
       }
     });
+
+    // Version 5 â€” Transaction compound index for dashboard queries
+    this.version(5).stores({
+      categories:       '++id, name, isDeleted',
+      products:         '++id, name, &sku, categoryId, barcode, isDeleted',
+      suppliers:        '++id, name, isDeleted',
+      stockIns:         '++id, productId, supplierId, date',
+      stockOuts:        '++id, productId, date',
+      hppHistory:       '++id, productId, date',
+      paymentMethods:   '++id, name, category',
+      transactions:     '++id, date, &receiptNumber, paymentMethodId, status, orderNumber, [status+date]',
+      transactionItems: '++id, transactionId, productId',
+      storeSettings:    '++id',
+    });
   }
 }
 
