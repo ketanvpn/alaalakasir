@@ -32,6 +32,7 @@ const BACKUP_TABLE_KEYS: Array<keyof BackupData> = [
   'transactionItems',
   'storeSettings',
 ];
+const BACKUP_FILE_PREFIX = 'alaalakasir-backup';
 
 export function shouldShowBackupReminder(lastBackupAt: Date | null): boolean {
   if (!lastBackupAt) return true;
@@ -56,41 +57,54 @@ function downloadBackupInBrowser(fileName: string, json: string) {
   URL.revokeObjectURL(url);
 }
 
+function buildBackupFileName() {
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10);
+  const time = now.toTimeString().slice(0, 8).replace(/:/g, '-');
+  return `${BACKUP_FILE_PREFIX}-${date}_${time}.json`;
+}
+
+async function buildBackupPayload() {
+  return {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    categories: await db.categories.toArray(),
+    products: await db.products.toArray(),
+    suppliers: await db.suppliers.toArray(),
+    stockIns: await db.stockIns.toArray(),
+    stockOuts: await db.stockOuts.toArray(),
+    hppHistory: await db.hppHistory.toArray(),
+    paymentMethods: await db.paymentMethods.toArray(),
+    transactions: await db.transactions.toArray(),
+    transactionItems: await db.transactionItems.toArray(),
+    storeSettings: await db.storeSettings.toArray(),
+  };
+}
+
+async function writeBackupFileToDocuments(fileName: string, json: string) {
+  await Filesystem.writeFile({
+    path: fileName,
+    data: json,
+    directory: Directory.Documents,
+    encoding: 'utf8',
+    recursive: true,
+  });
+  return Filesystem.getUri({ path: fileName, directory: Directory.Documents });
+}
+
 export async function exportBackupData() {
   try {
-    const data = {
-      version: 2,
-      exportedAt: new Date().toISOString(),
-      categories: await db.categories.toArray(),
-      products: await db.products.toArray(),
-      suppliers: await db.suppliers.toArray(),
-      stockIns: await db.stockIns.toArray(),
-      stockOuts: await db.stockOuts.toArray(),
-      hppHistory: await db.hppHistory.toArray(),
-      paymentMethods: await db.paymentMethods.toArray(),
-      transactions: await db.transactions.toArray(),
-      transactionItems: await db.transactionItems.toArray(),
-      storeSettings: await db.storeSettings.toArray(),
-    };
-
-    const fileName = `alaalakasir-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const data = await buildBackupPayload();
+    const fileName = buildBackupFileName();
     const json = JSON.stringify(data, null, 2);
 
     if (Capacitor.isNativePlatform()) {
-      const writeResult = await Filesystem.writeFile({
-        path: fileName,
-        data: json,
-        directory: Directory.Cache,
-        encoding: 'utf8',
-      });
-
-      await Share.share({
-        title: 'Backup AlaalaKasir',
-        text: 'Simpan file backup JSON ini di tempat aman, misalnya Google Drive atau folder Downloads.',
-        url: writeResult.uri,
-        dialogTitle: 'Simpan atau bagikan backup',
-      });
-      toast.success('Backup dibuat. Pilih lokasi simpan dari menu Android.');
+      const permission = await Filesystem.requestPermissions();
+      if (permission.publicStorage !== 'granted') {
+        throw new Error('Izin penyimpanan dibutuhkan untuk menyimpan backup');
+      }
+      await writeBackupFileToDocuments(fileName, json);
+      toast.success(`Backup tersimpan: ${fileName}`);
     } else {
       downloadBackupInBrowser(fileName, json);
       toast.success('Backup diunduh sebagai file JSON');
@@ -100,6 +114,40 @@ export async function exportBackupData() {
   } catch {
     toast.error('Gagal membuat backup');
     throw new Error('Backup export failed');
+  }
+}
+
+export async function shareLatestBackupFile() {
+  if (!Capacitor.isNativePlatform()) {
+    toast.info('Di browser, backup bisa langsung diunduh lewat tombol Simpan Backup');
+    return;
+  }
+
+  try {
+    const files = await Filesystem.readdir({
+      path: '',
+      directory: Directory.Documents,
+    });
+    const backupFiles = files.files
+      .map((entry) => typeof entry === 'string' ? entry : entry.name)
+      .filter((name): name is string => !!name && name.startsWith(BACKUP_FILE_PREFIX) && name.endsWith('.json'))
+      .sort();
+
+    const latest = backupFiles[backupFiles.length - 1];
+    if (!latest) {
+      toast.error('Belum ada file backup tersimpan. Simpan backup dulu.');
+      return;
+    }
+
+    const uriResult = await Filesystem.getUri({ path: latest, directory: Directory.Documents });
+    await Share.share({
+      title: 'Backup AlaalaKasir',
+      text: 'Bagikan file backup JSON ini ke lokasi aman.',
+      url: uriResult.uri,
+      dialogTitle: 'Bagikan file backup',
+    });
+  } catch {
+    toast.error('Gagal membagikan file backup');
   }
 }
 

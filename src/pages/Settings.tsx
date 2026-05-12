@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type PaymentMethod, type Category } from '@/lib/db';
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Store, CreditCard, Tag, Download, Upload, Plus, Trash2, Edit2, Truck, ArrowDownToLine, ArrowUpFromLine, ChevronRight, Receipt, Palette, HardDrive, Package, Camera, X } from 'lucide-react';
+import { Settings, Store, CreditCard, Tag, Download, Upload, Plus, Trash2, Edit2, Truck, ArrowDownToLine, ArrowUpFromLine, ChevronRight, Receipt, Palette, HardDrive, Package, Camera, X, Share2 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { FileOpener } from '@capawesome-team/capacitor-file-opener';
@@ -19,7 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner';
 import { compressImage } from '@/lib/image-utils';
 import { CURRENT_APP_VERSION, checkForAppUpdate, type AppUpdateInfo } from '@/lib/update-check';
-import { backupHasData, exportBackupData, isBackupData, restoreBackupData } from '@/lib/services/backupService';
+import { backupHasData, exportBackupData, isBackupData, restoreBackupData, shareLatestBackupFile } from '@/lib/services/backupService';
 import { canDeleteCategory, canDeletePaymentMethod } from '@/lib/services/settingsService';
 import { ApkInstaller } from '@/lib/apk-installer';
 
@@ -90,6 +90,8 @@ export default function Pengaturan() {
   const [updateInstallDialog, setUpdateInstallDialog] = useState(false);
   const [supportQrisDialog, setSupportQrisDialog] = useState(false);
   const [importingBackup, setImportingBackup] = useState(false);
+  const [savingBackup, setSavingBackup] = useState(false);
+  const [sharingBackup, setSharingBackup] = useState(false);
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
   const [pendingBackupData, setPendingBackupData] = useState<unknown>(null);
   useEffect(() => {
@@ -208,6 +210,26 @@ export default function Pengaturan() {
       }
     };
     input.click();
+  };
+
+  const handleSaveBackup = async () => {
+    if (savingBackup) return;
+    setSavingBackup(true);
+    try {
+      await exportBackupData();
+    } finally {
+      setSavingBackup(false);
+    }
+  };
+
+  const handleShareBackup = async () => {
+    if (sharingBackup) return;
+    setSharingBackup(true);
+    try {
+      await shareLatestBackupFile();
+    } finally {
+      setSharingBackup(false);
+    }
   };
 
   const handleConfirmRestore = async () => {
@@ -612,9 +634,25 @@ export default function Pengaturan() {
           <CardTitle className="text-sm flex items-center gap-1.5"><Download className="w-4 h-4" /> Backup & Restore</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <Button variant="outline" className="w-full h-10 text-sm gap-2" onClick={exportBackupData}>
-            <Download className="w-4 h-4" /> Export Backup (JSON)
+          <Button
+            variant="outline"
+            className="w-full h-10 text-sm gap-2"
+            onClick={handleSaveBackup}
+            disabled={savingBackup}
+          >
+            <Download className="w-4 h-4" /> {savingBackup ? 'Menyimpan Backup...' : 'Simpan Backup ke Perangkat'}
           </Button>
+          <Button
+            variant="outline"
+            className="w-full h-10 text-sm gap-2"
+            onClick={handleShareBackup}
+            disabled={sharingBackup}
+          >
+            <Share2 className="w-4 h-4" /> {sharingBackup ? 'Membuka Opsi Bagikan...' : 'Bagikan Backup Terakhir'}
+          </Button>
+          <p className="text-[10px] text-muted-foreground text-center">
+            Lokasi default backup: folder Dokumen / Files di perangkat.
+          </p>
           <Button
             variant="outline"
             className="w-full h-10 text-sm gap-2"
