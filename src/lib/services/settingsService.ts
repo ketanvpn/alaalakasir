@@ -4,6 +4,12 @@ export type DeletePaymentMethodCheck =
   | { ok: true }
   | { ok: false; reason: "last_method" | "already_used" };
 
+export function isPaymentMethodDeletable(
+  check: DeletePaymentMethodCheck
+): check is { ok: true } {
+  return check.ok;
+}
+
 export async function canDeletePaymentMethod(id: number): Promise<DeletePaymentMethodCheck> {
   const pmCount = await db.paymentMethods.count();
   if (pmCount <= 1) {
@@ -21,6 +27,12 @@ export async function canDeletePaymentMethod(id: number): Promise<DeletePaymentM
 export type DeleteCategoryCheck =
   | { ok: true }
   | { ok: false; reason: "has_active_products" };
+
+export function isCategoryDeletable(
+  check: DeleteCategoryCheck
+): check is { ok: true } {
+  return check.ok;
+}
 
 export async function canDeleteCategory(id: number): Promise<DeleteCategoryCheck> {
   const activeProductCount = await db.products

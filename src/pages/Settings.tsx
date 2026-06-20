@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 import { compressImage } from '@/lib/image-utils';
 import { CURRENT_APP_VERSION, checkForAppUpdate, type AppUpdateInfo } from '@/lib/update-check';
 import { backupHasData, exportBackupData, isBackupData, restoreBackupData, shareLatestBackupFile } from '@/lib/services/backupService';
-import { canDeleteCategory, canDeletePaymentMethod } from '@/lib/services/settingsService';
+import { canDeleteCategory, canDeletePaymentMethod, isCategoryDeletable, isPaymentMethodDeletable } from '@/lib/services/settingsService';
 import { ApkInstaller } from '@/lib/apk-installer';
 
 const SUPPORT_QRIS_URL = '/support/qris-ketantech.png';
@@ -150,13 +150,12 @@ export default function Pengaturan() {
   };
   const deletePm = async (id: number) => {
     const check = await canDeletePaymentMethod(id);
-    if (!check.ok && check.reason === 'last_method') {
-      toast.error('Minimal harus ada 1 metode pembayaran');
-      return;
-    }
-
-    if (!check.ok && check.reason === 'already_used') {
-      toast.error('Metode pembayaran ini sudah dipakai transaksi dan tidak bisa dihapus');
+    if (!isPaymentMethodDeletable(check)) {
+      if (check.reason === 'last_method') {
+        toast.error('Minimal harus ada 1 metode pembayaran');
+      } else if (check.reason === 'already_used') {
+        toast.error('Metode pembayaran ini sudah dipakai transaksi dan tidak bisa dihapus');
+      }
       return;
     }
 
@@ -175,8 +174,10 @@ export default function Pengaturan() {
   };
   const deleteCat = async (id: number) => {
     const check = await canDeleteCategory(id);
-    if (!check.ok && check.reason === 'has_active_products') {
-      toast.error('Kategori masih dipakai produk aktif dan tidak bisa dihapus');
+    if (!isCategoryDeletable(check)) {
+      if (check.reason === 'has_active_products') {
+        toast.error('Kategori masih dipakai produk aktif dan tidak bisa dihapus');
+      }
       return;
     }
 

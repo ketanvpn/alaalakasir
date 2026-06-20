@@ -1,5 +1,9 @@
 import { db, type Product, type Transaction, type TransactionItemRecord } from '@/lib/db';
 
+function generateReceiptNumber(): string {
+  return `TX${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
+}
+
 export interface SaleCartItem {
   productId: number;
   productName: string;
@@ -154,7 +158,7 @@ export async function saveOpenBill(input: SaveOpenBillInput): Promise<SaleResult
       change: 0,
       profit: 0,
       date: now,
-      receiptNumber: `TX${Date.now()}`,
+      receiptNumber: generateReceiptNumber(),
       status: 'open',
       customerName: input.customerName,
       tableNumber: input.tableNumber,
@@ -219,7 +223,7 @@ export async function checkoutSale(input: CheckoutInput): Promise<SaleResult> {
       change: input.change,
       profit: input.profit,
       date: now,
-      receiptNumber: `TX${Date.now()}`,
+      receiptNumber: generateReceiptNumber(),
       status: 'completed',
       customerName: input.customerName,
       tableNumber: input.tableNumber,

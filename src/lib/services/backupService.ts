@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { Capacitor } from '@capacitor/core';
-import { Directory, Filesystem } from '@capacitor/filesystem';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { toast } from 'sonner';
 
@@ -20,7 +20,9 @@ export interface BackupData {
   storeSettings?: BackupRecord[];
 }
 
-const BACKUP_TABLE_KEYS: Array<keyof BackupData> = [
+type TableName = 'categories' | 'products' | 'suppliers' | 'stockIns' | 'stockOuts' | 'hppHistory' | 'paymentMethods' | 'transactions' | 'transactionItems' | 'storeSettings';
+
+const BACKUP_TABLE_KEYS: TableName[] = [
   'categories',
   'products',
   'suppliers',
@@ -86,7 +88,7 @@ async function writeBackupFileToDocuments(fileName: string, json: string) {
     path: fileName,
     data: json,
     directory: Directory.Documents,
-    encoding: 'utf8',
+    encoding: Encoding.UTF8,
     recursive: true,
   });
   return Filesystem.getUri({ path: fileName, directory: Directory.Documents });
@@ -204,7 +206,7 @@ function hasRequiredFields(record: BackupRecord, requiredKeys: string[]) {
 }
 
 function validateBackupDataShape(data: BackupData) {
-  const tableValidators: Partial<Record<keyof BackupData, string[]>> = {
+  const tableValidators: Partial<Record<typeof BACKUP_TABLE_KEYS[number], string[]>> = {
     categories: ['name', 'color', 'icon'],
     products: ['name', 'sku', 'categoryId', 'price', 'hpp', 'stock', 'unit'],
     suppliers: ['name'],
@@ -217,7 +219,9 @@ function validateBackupDataShape(data: BackupData) {
     storeSettings: ['storeName', 'address', 'phone', 'receiptFooter', 'onboardingDone', 'deviceId'],
   };
 
-  for (const [tableName, keys] of Object.entries(tableValidators) as Array<[keyof BackupData, string[]]>) {
+  for (const tableName of BACKUP_TABLE_KEYS) {
+    const keys = tableValidators[tableName];
+    if (!keys) continue;
     const rows = data[tableName];
     if (!rows) continue;
     const invalidRow = rows.find((row) => !row || typeof row !== 'object' || !hasRequiredFields(row, keys));
@@ -230,26 +234,39 @@ function validateBackupDataShape(data: BackupData) {
 export async function restoreBackupData(data: BackupData) {
   validateBackupDataShape(data);
 
+  // Data sudah divalidasi bentuknya; cast ke tipe spesifik tabel untuk bulkAdd.
+  const categories = (data.categories ?? []) as unknown as Parameters<typeof db.categories.bulkAdd>[0];
+  const products = (data.products ?? []) as unknown as Parameters<typeof db.products.bulkAdd>[0];
+  const suppliers = (data.suppliers ?? []) as unknown as Parameters<typeof db.suppliers.bulkAdd>[0];
+  const stockIns = (data.stockIns ?? []) as unknown as Parameters<typeof db.stockIns.bulkAdd>[0];
+  const stockOuts = (data.stockOuts ?? []) as unknown as Parameters<typeof db.stockOuts.bulkAdd>[0];
+  const hppHistory = (data.hppHistory ?? []) as unknown as Parameters<typeof db.hppHistory.bulkAdd>[0];
+  const paymentMethods = (data.paymentMethods ?? []) as unknown as Parameters<typeof db.paymentMethods.bulkAdd>[0];
+  const transactions = (data.transactions ?? []) as unknown as Parameters<typeof db.transactions.bulkAdd>[0];
+  const storeSettings = (data.storeSettings ?? []) as unknown as Parameters<typeof db.storeSettings.bulkAdd>[0];
+
   await db.transaction('rw', restoreTables, async () => {
     await clearAllTables();
 
-    if (data.categories?.length) await db.categories.bulkAdd(data.categories);
-    if (data.products?.length) await db.products.bulkAdd(data.products);
-    if (data.suppliers?.length) await db.suppliers.bulkAdd(data.suppliers);
-    if (data.stockIns?.length) await db.stockIns.bulkAdd(data.stockIns);
-    if (data.stockOuts?.length) await db.stockOuts.bulkAdd(data.stockOuts);
-    if (data.hppHistory?.length) await db.hppHistory.bulkAdd(data.hppHistory);
-    if (data.paymentMethods?.length) await db.paymentMethods.bulkAdd(data.paymentMethods);
-    if (data.transactions?.length) await db.transactions.bulkAdd(data.transactions);
-    if (data.storeSettings?.length) await db.storeSettings.bulkAdd(data.storeSettings);
+    if (categories.length) await db.categories.bulkAdd(categories);
+    if (products.length) await db.products.bulkAdd(products);
+    if (suppliers.length) await db.suppliers.bulkAdd(suppliers);
+    if (stockIns.length) await db.stockIns.bulkAdd(stockIns);
+    if (stockOuts.length) await db.stockOuts.bulkAdd(stockOuts);
+    if (hppHistory.length) await db.hppHistory.bulkAdd(hppHistory);
+    if (paymentMethods.length) await db.paymentMethods.bulkAdd(paymentMethods);
+    if (transactions.length) await db.transactions.bulkAdd(transactions);
+    if (storeSettings.length) await db.storeSettings.bulkAdd(storeSettings);
 
     if (data.transactionItems?.length) {
-      await db.transactionItems.bulkAdd(data.transactionItems);
+      await db.transactionItems.bulkAdd(data.transactionItems as unknown as Parameters<typeof db.transactionItems.bulkAdd>[0]);
       return;
     }
 
-    if (data.transactions?.length) {
-      const itemRecords = data.transactions.flatMap(transaction => {
+    if (transactions.length && !data.transactionItems?.length) {
+      // Fallback: migrasi embedded items[] dari backup versi lama
+      const legacyTransactions = (data.transactions ?? []) as BackupRecord[];
+      const itemRecords = legacyTransactions.flatMap(transaction => {
         const items = transaction.items;
         const transactionId = transaction.id;
         if (!Array.isArray(items) || typeof transactionId !== 'number') return [];
@@ -270,7 +287,7 @@ export async function restoreBackupData(data: BackupData) {
           }));
       });
 
-      if (itemRecords.length) await db.transactionItems.bulkAdd(itemRecords);
+      if (itemRecords.length) await db.transactionItems.bulkAdd(itemRecords as unknown as Parameters<typeof db.transactionItems.bulkAdd>[0]);
     }
   });
 }

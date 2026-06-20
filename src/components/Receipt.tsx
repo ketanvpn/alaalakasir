@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import { Capacitor } from '@capacitor/core';
-import { BluetoothLe } from '@capacitor-community/bluetooth-le';
+import { BleClient, type BleCharacteristicProperties } from '@capacitor-community/bluetooth-le';
 import { BluetoothSerial } from '@e-is/capacitor-bluetooth-serial';
 import type { BluetoothDevice } from '@e-is/capacitor-bluetooth-serial';
 import { Download, Share2, Printer, X } from 'lucide-react';
@@ -205,9 +205,9 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
       }
 
       try {
-        await BluetoothLe.initialize();
+        await BleClient.initialize();
         try {
-          await BluetoothLe.requestEnable();
+          await BleClient.requestEnable();
         } catch {
           // requestEnable can be cancelled if already enabled
         }
@@ -216,25 +216,25 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
 
         if (!deviceId) {
           toast.info('Pilih printer Bluetooth thermal 58mm...');
-          const device = await BluetoothLe.requestDevice({});
+          const device = await BleClient.requestDevice({});
           deviceId = device.deviceId;
           localStorage.setItem(PRINTER_DEVICE_ID_KEY, deviceId);
         }
 
         toast.info('Menghubungkan printer Bluetooth...');
-        await BluetoothLe.connect(deviceId);
+        await BleClient.connect(deviceId);
 
         let serviceUuid = PRINTER_SERVICE_UUID;
         let characteristicUuid = PRINTER_CHARACTERISTIC_UUID;
         let useWriteWithoutResponse = true;
 
         try {
-          const { services } = await BluetoothLe.getServices({ deviceId });
+          const services = await BleClient.getServices(deviceId);
           let selected: { service: string; characteristic: string; useWriteWithoutResponse: boolean } | null = null;
 
           for (const service of services ?? []) {
             for (const characteristic of service.characteristics ?? []) {
-              const p = characteristic.properties ?? {};
+              const p = characteristic.properties as BleCharacteristicProperties;
               if (p.writeWithoutResponse) {
                 selected = {
                   service: service.uuid,
@@ -267,19 +267,19 @@ export default function Receipt({ open, onClose, transaction, items, storeSettin
         for (let i = 0; i < payload.length; i += 180) {
           const chunk = payload.slice(i, i + 180);
           if (useWriteWithoutResponse) {
-            await BluetoothLe.writeWithoutResponse(deviceId, serviceUuid, characteristicUuid, toDataView(chunk));
+            await BleClient.writeWithoutResponse(deviceId, serviceUuid, characteristicUuid, toDataView(chunk));
           } else {
-            await BluetoothLe.write(deviceId, serviceUuid, characteristicUuid, toDataView(chunk));
+            await BleClient.write(deviceId, serviceUuid, characteristicUuid, toDataView(chunk));
           }
         }
 
-        await BluetoothLe.disconnect(deviceId);
+        await BleClient.disconnect(deviceId);
         toast.success('Struk berhasil dicetak ke printer Bluetooth!');
         return;
       } catch {
         try {
           const savedDeviceId = localStorage.getItem(PRINTER_DEVICE_ID_KEY);
-          if (savedDeviceId) await BluetoothLe.disconnect(savedDeviceId);
+          if (savedDeviceId) await BleClient.disconnect(savedDeviceId);
         } catch {
           // ignore
         }

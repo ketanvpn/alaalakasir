@@ -3,16 +3,7 @@ import { db, type Category, type Product, type StoreSettings } from "@/lib/db";
 export async function resetDb() {
   await db.transaction(
     "rw",
-    db.categories,
-    db.products,
-    db.suppliers,
-    db.stockIns,
-    db.stockOuts,
-    db.hppHistory,
-    db.paymentMethods,
-    db.transactions,
-    db.transactionItems,
-    db.storeSettings,
+    [db.categories, db.products, db.suppliers, db.stockIns, db.stockOuts, db.hppHistory, db.paymentMethods, db.transactions, db.transactionItems, db.storeSettings],
     async () => {
       await db.categories.clear();
       await db.products.clear();
