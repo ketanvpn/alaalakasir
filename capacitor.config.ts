@@ -4,7 +4,6 @@ const config: CapacitorConfig = {
   appId: 'id.alaalakasir.app',
   appName: 'AlaalaKasir',
   webDir: 'dist',
-  bundledWebRuntime: false,
 };
 
 export default config;

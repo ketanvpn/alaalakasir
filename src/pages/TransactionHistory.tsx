@@ -19,6 +19,8 @@ import ReceiptDialog from '@/components/Receipt';
 import { toast } from 'sonner';
 import { deleteTransaction } from '@/lib/services/salesService';
 
+const PAGE_SIZE = 50;
+
 export default function TransactionHistory() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -31,21 +33,26 @@ export default function TransactionHistory() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [restoreStock, setRestoreStock] = useState(true);
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'open'>('all');
+  const [displayLimit, setDisplayLimit] = useState(PAGE_SIZE);
 
   const transactions = useLiveQuery(() =>
-    db.transactions.orderBy('date').reverse().toArray()
-  );
+    db.transactions.orderBy('date').reverse().limit(displayLimit).toArray()
+  , [displayLimit]);
 
-  // Query all transaction items and build lookup map
+  const totalTxCount = useLiveQuery(() => db.transactions.count());
+
+  // Query transaction items only for visible transactions
   const txItemsMap = useLiveQuery(async () => {
-    const items = await db.transactionItems.toArray();
+    if (!transactions || transactions.length === 0) return {};
+    const txIds = transactions.map(t => t.id!).filter(Boolean);
+    const items = await db.transactionItems.where('transactionId').anyOf(txIds).toArray();
     const map: Record<number, TransactionItemRecord[]> = {};
     for (const item of items) {
       if (!map[item.transactionId]) map[item.transactionId] = [];
       map[item.transactionId].push(item);
     }
     return map;
-  });
+  }, [transactions]);
 
   const getTxItems = (txId: number | undefined): TransactionItemRecord[] =>
     txId ? (txItemsMap?.[txId] ?? []) : [];
@@ -312,6 +319,18 @@ export default function TransactionHistory() {
                 </div>
               </div>
             ))}
+            {(totalTxCount ?? 0) > filtered.length && filtered.length >= displayLimit && (
+              <div className="flex justify-center pt-2 pb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs gap-1.5"
+                  onClick={() => setDisplayLimit(prev => prev + PAGE_SIZE)}
+                >
+                  Muat Lebih Banyak
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
