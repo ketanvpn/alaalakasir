@@ -1,21 +1,35 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import { useState } from 'react';
-import { Package, ArrowDownToLine, ArrowUpFromLine, TrendingUp, AlertTriangle, Warehouse, BarChart3 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Package, ArrowDownToLine, ArrowUpFromLine, TrendingUp, AlertTriangle, Warehouse, BarChart3, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { format, subDays, startOfDay } from 'date-fns';
-import { id } from 'date-fns/locale';
+import { format, eachDayOfInterval, startOfDay, endOfDay } from 'date-fns';
+import { toast } from 'sonner';
+import { PeriodFilter } from '@/components/PeriodFilter';
+import { useReportPeriod } from '@/lib/hooks/useReportPeriod';
+import {
+  buildTimestampedFileName,
+  exportToFile,
+  productsToCsv,
+  stockMovementsToCsv,
+} from '@/lib/exporters/reportExporter';
 
 export default function StockReport() {
-  const [period, setPeriod] = useState<'7' | '30'>('7');
-  const days = Number(period);
-  const since = startOfDay(subDays(new Date(), days - 1));
+  const period = useReportPeriod('30');
+  const { range, spanDays } = period;
+  const [exporting, setExporting] = useState(false);
 
   const products = useLiveQuery(() => db.products.where('isDeleted').equals(0).toArray());
-  const stockIns = useLiveQuery(async () => db.stockIns.where('date').aboveOrEqual(since).toArray(), [days]);
-  const stockOuts = useLiveQuery(async () => db.stockOuts.where('date').aboveOrEqual(since).toArray(), [days]);
+  const stockIns = useLiveQuery(
+    () => db.stockIns.where('date').between(range.from, range.to, true, true).toArray(),
+    [range.from.getTime(), range.to.getTime()]
+  );
+  const stockOuts = useLiveQuery(
+    () => db.stockOuts.where('date').between(range.from, range.to, true, true).toArray(),
+    [range.from.getTime(), range.to.getTime()]
+  );
 
   const totalStockIn = stockIns?.reduce((s, si) => s + si.quantity, 0) ?? 0;
   const totalStockInValue = stockIns?.reduce((s, si) => s + si.totalPrice, 0) ?? 0;
@@ -32,11 +46,10 @@ export default function StockReport() {
 
   const getProductName = (pid: number) => products?.find(p => p.id === pid)?.name ?? '-';
 
-  const chartData = (() => {
+  const chartData = useMemo(() => {
     const map: Record<string, { stockIn: number; stockOut: number }> = {};
-    for (let i = days - 1; i >= 0; i--) {
-      const d = format(subDays(new Date(), i), 'dd/MM');
-      map[d] = { stockIn: 0, stockOut: 0 };
+    for (const d of eachDayOfInterval({ start: startOfDay(range.from), end: endOfDay(range.to) })) {
+      map[format(d, 'dd/MM')] = { stockIn: 0, stockOut: 0 };
     }
     stockIns?.forEach(si => {
       const d = format(new Date(si.date), 'dd/MM');
@@ -47,14 +60,13 @@ export default function StockReport() {
       if (map[d]) map[d].stockOut += so.quantity;
     });
     return Object.entries(map).map(([date, data]) => ({ date, ...data }));
-  })();
+  }, [stockIns, stockOuts, range.from, range.to]);
 
-  const stockMovementData = (() => {
+  const stockMovementData = useMemo(() => {
     const map: Record<string, number> = {};
     let cumulative = 0;
-    for (let i = days - 1; i >= 0; i--) {
-      const d = format(subDays(new Date(), i), 'dd/MM');
-      map[d] = 0;
+    for (const d of eachDayOfInterval({ start: startOfDay(range.from), end: endOfDay(range.to) })) {
+      map[format(d, 'dd/MM')] = 0;
     }
     stockIns?.forEach(si => {
       const d = format(new Date(si.date), 'dd/MM');
@@ -68,7 +80,7 @@ export default function StockReport() {
       cumulative += movement;
       return { date, stock: cumulative };
     });
-  })();
+  }, [stockIns, stockOuts, range.from, range.to]);
 
   const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`;
 
@@ -81,19 +93,90 @@ export default function StockReport() {
     lain: 'Lainnya',
   };
 
+  const handleExport = async () => {
+    if (exporting) return;
+    if ((!stockIns || stockIns.length === 0) && (!stockOuts || stockOuts.length === 0) && (!products || products.length === 0)) {
+      toast.info('Belum ada data untuk diekspor pada rentang ini');
+      return;
+    }
+    setExporting(true);
+    try {
+      // Mutasi stok (masuk + keluar) pada rentang terpilih
+      const movementRows = [
+        ...(stockIns ?? []).map((si) => ({
+          date: si.date,
+          type: 'masuk' as const,
+          productName: getProductName(si.productId),
+          quantity: si.quantity,
+          unitPrice: si.buyPrice,
+          total: si.totalPrice,
+        })),
+        ...(stockOuts ?? []).map((so) => ({
+          date: so.date,
+          type: 'keluar' as const,
+          productName: getProductName(so.productId),
+          quantity: so.quantity,
+          reason: reasonLabels[so.reason] ?? so.reason,
+        })),
+      ];
+
+      if (movementRows.length > 0) {
+        await exportToFile({
+          fileName: buildTimestampedFileName('mutasi-stok', 'csv'),
+          content: stockMovementsToCsv(movementRows),
+          successMessage: 'Laporan mutasi stok tersimpan',
+        });
+      }
+
+      // Snapshot stok saat ini (nilai stok)
+      if (products && products.length > 0) {
+        await exportToFile({
+          fileName: buildTimestampedFileName('nilai-stok', 'csv'),
+          content: productsToCsv(
+            products.map((p) => ({
+              name: p.name,
+              sku: p.sku,
+              unit: p.unit,
+              stock: p.stock,
+              hpp: p.hpp,
+              price: p.price,
+              stockValue: p.hpp * p.stock,
+            }))
+          ),
+          successMessage: 'Laporan nilai stok tersimpan',
+        });
+      }
+    } catch {
+      // toast already fired inside exportToFile
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="px-4 pt-6 pb-20 space-y-5">
-      <h1 className="text-xl font-bold flex items-center gap-2">
-        <Warehouse className="w-5 h-5 text-primary" />
-        Laporan Stok
-      </h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl font-bold flex items-center gap-2">
+          <Warehouse className="w-5 h-5 text-primary" />
+          Laporan Stok
+        </h1>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 text-xs gap-1.5"
+          onClick={handleExport}
+          disabled={exporting}
+        >
+          <Download className="w-3.5 h-3.5" />
+          {exporting ? 'Mengekspor...' : 'Export'}
+        </Button>
+      </div>
 
-      <Tabs value={period} onValueChange={v => setPeriod(v as '7' | '30')}>
-        <TabsList className="w-full">
-          <TabsTrigger value="7" className="flex-1">7 Hari</TabsTrigger>
-          <TabsTrigger value="30" className="flex-1">30 Hari</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <PeriodFilter period={period} />
+
+      <p className="text-xs text-muted-foreground -mt-2">
+        Menampilkan data: <span className="font-medium text-foreground">{period.rangeLabel}</span>
+      </p>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-2">
@@ -150,7 +233,13 @@ export default function StockReport() {
         <CardContent className="pb-4">
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={chartData}>
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                interval={spanDays > 14 ? Math.floor(spanDays / 7) : 0}
+              />
               <YAxis hide />
               <Tooltip 
                 formatter={(v: number, name: string) => [v, name === 'stockIn' ? 'Masuk' : 'Keluar']} 

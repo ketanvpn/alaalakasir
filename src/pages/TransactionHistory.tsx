@@ -3,7 +3,7 @@ import { db, type Transaction, type TransactionItemRecord } from '@/lib/db';
 import { useState, useEffect } from 'react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
-import { ArrowLeft, Search, Receipt as ReceiptIcon, Calendar, ChevronRight, ShoppingBag, CalendarIcon, X, Trash2, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Search, Receipt as ReceiptIcon, Calendar, ChevronRight, ShoppingBag, CalendarIcon, X, Trash2, ShoppingCart, Download } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import ReceiptDialog from '@/components/Receipt';
 import { toast } from 'sonner';
 import { deleteTransaction } from '@/lib/services/salesService';
+import { buildTimestampedFileName, exportToFile, transactionsToCsvRows } from '@/lib/exporters/reportExporter';
 
 const PAGE_SIZE = 50;
 
@@ -34,6 +35,7 @@ export default function TransactionHistory() {
   const [restoreStock, setRestoreStock] = useState(true);
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'open'>('all');
   const [displayLimit, setDisplayLimit] = useState(PAGE_SIZE);
+  const [exporting, setExporting] = useState(false);
 
   const transactions = useLiveQuery(() =>
     db.transactions.orderBy('date').reverse().limit(displayLimit).toArray()
@@ -140,6 +142,40 @@ export default function TransactionHistory() {
     }
   };
 
+  const handleExport = async () => {
+    if (exporting) return;
+    if (filtered.length === 0) {
+      toast.info('Tidak ada transaksi untuk diekspor pada filter ini');
+      return;
+    }
+    setExporting(true);
+    try {
+      const csv = transactionsToCsvRows(
+        filtered.map((tx) => ({
+          receiptNumber: tx.receiptNumber,
+          date: tx.date,
+          status: tx.status,
+          total: tx.total,
+          subtotal: tx.subtotal,
+          discountAmount: tx.discountAmount,
+          paymentMethodName: getPaymentName(tx.paymentMethodId),
+          customerName: tx.customerName,
+          tableNumber: tx.tableNumber,
+          remarks: tx.remarks,
+        }))
+      );
+      await exportToFile({
+        fileName: buildTimestampedFileName('riwayat-transaksi', 'csv'),
+        content: csv,
+        successMessage: 'Riwayat transaksi tersimpan',
+      });
+    } catch {
+      // toast already fired inside exportToFile
+    } finally {
+      setExporting(false);
+    }
+  };
+
   useEffect(() => {
     if (selectedTx?.status === 'open') {
       setRestoreStock(true);
@@ -155,10 +191,20 @@ export default function TransactionHistory() {
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <h1 className="text-xl font-bold flex items-center gap-2">
+        <h1 className="text-xl font-bold flex items-center gap-2 flex-1">
           <ReceiptIcon className="w-5 h-5 text-primary" />
           Riwayat Transaksi
         </h1>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 text-xs gap-1.5 shrink-0"
+          onClick={handleExport}
+          disabled={exporting || filtered.length === 0}
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span className="hidden xs:inline">{exporting ? '...' : 'Export'}</span>
+        </Button>
       </div>
 
       {/* Search */}
