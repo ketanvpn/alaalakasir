@@ -40,13 +40,13 @@ export default defineConfig(({ mode }) => ({
         orientation: "any",
         icons: [
           {
-            src: "/alaalakasir-icon.png",
+            src: "/pwa-icon-192.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any"
           },
           {
-            src: "/alaalakasir-icon.png",
+            src: "/pwa-icon-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any maskable",
