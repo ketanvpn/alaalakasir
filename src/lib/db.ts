@@ -325,7 +325,7 @@ class PosDatabase extends Dexie {
       }
     });
 
-    // Version 5 â€” Transaction compound index for dashboard queries
+    // Version 5 — Transaction compound index for dashboard queries
     this.version(5).stores({
       categories:       '++id, name, isDeleted',
       products:         '++id, name, &sku, categoryId, barcode, isDeleted',
