@@ -48,7 +48,7 @@ function downloadInBrowser(fileName: string, content: string, mimeType: string) 
   a.href = url;
   a.download = fileName;
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 async function writeToDocuments(fileName: string, content: string) {

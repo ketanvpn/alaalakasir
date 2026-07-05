@@ -1,7 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
@@ -9,8 +8,6 @@ import { App as CapacitorApp } from "@capacitor/app";
 import AppLayout from "./components/layout/AppLayout";
 import BrandLoading from "./components/BrandLoading";
 import ErrorBoundary from "./components/ErrorBoundary";
-
-const queryClient = new QueryClient();
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Cashier = lazy(() => import("./pages/Cashier"));
@@ -66,7 +63,6 @@ const App = () => {
 
   return (
     <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -90,7 +86,6 @@ const App = () => {
           </Suspense>
         </BrowserRouter>
       </TooltipProvider>
-    </QueryClientProvider>
     </ErrorBoundary>
   );
 };

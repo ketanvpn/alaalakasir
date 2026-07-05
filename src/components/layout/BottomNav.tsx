@@ -98,7 +98,7 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className={cn(
+    <nav aria-label="Navigasi utama" className={cn(
       'fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)] transition-transform duration-150',
       keyboardOpen && 'translate-y-full'
     )}>

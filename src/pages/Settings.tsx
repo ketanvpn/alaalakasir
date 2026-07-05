@@ -20,7 +20,6 @@ import { toast } from 'sonner';
 import { compressImage } from '@/lib/image-utils';
 import { CURRENT_APP_VERSION, checkForAppUpdate, type AppUpdateInfo } from '@/lib/update-check';
 import { backupHasData, exportBackupData, isBackupData, restoreBackupData, shareLatestBackupFile } from '@/lib/services/backupService';
-import { canDeleteCategory, canDeletePaymentMethod, isCategoryDeletable, isPaymentMethodDeletable } from '@/lib/services/settingsService';
 import { ApkInstaller } from '@/lib/apk-installer';
 
 const SUPPORT_QRIS_URL = '/support/qris-ketantech.png';
@@ -33,17 +32,11 @@ export default function Pengaturan() {
   const categories = useLiveQuery(() => db.categories.where('isDeleted').equals(0).toArray());
   const paymentMethodUsage = useLiveQuery(async () => {
     const methods = await db.paymentMethods.toArray();
-    const transactions = await db.transactions.toArray();
     const usageMap: Record<number, number> = {};
 
     for (const method of methods) {
       if (!method.id) continue;
-      usageMap[method.id] = 0;
-    }
-
-    for (const tx of transactions) {
-      const key = tx.paymentMethodId;
-      usageMap[key] = (usageMap[key] ?? 0) + 1;
+      usageMap[method.id] = await db.transactions.where('paymentMethodId').equals(method.id).count();
     }
 
     return usageMap;
@@ -94,6 +87,10 @@ export default function Pengaturan() {
   const [sharingBackup, setSharingBackup] = useState(false);
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
   const [pendingBackupData, setPendingBackupData] = useState<unknown>(null);
+  const [deletePmConfirmOpen, setDeletePmConfirmOpen] = useState(false);
+  const [pendingDeletePmId, setPendingDeletePmId] = useState<number | null>(null);
+  const [deleteCatConfirmOpen, setDeleteCatConfirmOpen] = useState(false);
+  const [pendingDeleteCatId, setPendingDeleteCatId] = useState<number | null>(null);
   useEffect(() => {
     if (navigator.storage?.estimate) {
       navigator.storage.estimate().then(est => {
@@ -117,7 +114,12 @@ export default function Pengaturan() {
     }
 
     if (storeSettings?.id) {
-      await db.storeSettings.update(storeSettings.id, { storeName: storeName.trim(), address: storeAddr.trim(), phone: storePhone.trim(), logo: storeLogo || undefined });
+      try {
+        await db.storeSettings.update(storeSettings.id, { storeName: storeName.trim(), address: storeAddr.trim(), phone: storePhone.trim(), logo: storeLogo || undefined });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Gagal menyimpan info toko');
+        return;
+      }
       toast.success('Info toko disimpan');
       setStoreDialog(false);
     }
@@ -143,46 +145,91 @@ export default function Pengaturan() {
   const openPmEdit = (pm: PaymentMethod) => { setPmEditId(pm.id!); setPmName(pm.name); setPmCategory(pm.category); setPmDialog(true); };
   const savePm = async () => {
     if (!pmName.trim()) return;
-    if (pmEditId) await db.paymentMethods.update(pmEditId, { name: pmName.trim(), category: pmCategory });
-    else await db.paymentMethods.add({ name: pmName.trim(), category: pmCategory, isDefault: false, createdAt: new Date() });
+    try {
+      if (pmEditId) await db.paymentMethods.update(pmEditId, { name: pmName.trim(), category: pmCategory });
+      else await db.paymentMethods.add({ name: pmName.trim(), category: pmCategory, isDefault: false, createdAt: new Date() });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Gagal menyimpan metode pembayaran');
+      return;
+    }
     setPmDialog(false);
     toast.success('Metode pembayaran disimpan');
   };
-  const deletePm = async (id: number) => {
-    const check = await canDeletePaymentMethod(id);
-    if (!isPaymentMethodDeletable(check)) {
-      if (check.reason === 'last_method') {
-        toast.error('Minimal harus ada 1 metode pembayaran');
-      } else if (check.reason === 'already_used') {
-        toast.error('Metode pembayaran ini sudah dipakai transaksi dan tidak bisa dihapus');
-      }
+  const getPaymentMethodDeleteBlockReason = (id: number) => {
+    if (!paymentMethods) return null;
+    if (paymentMethods.length <= 1) return 'Minimal harus ada 1 metode pembayaran';
+    if ((paymentMethodUsage?.[id] ?? 0) > 0) {
+      return 'Sudah dipakai transaksi';
+    }
+    return null;
+  };
+
+  const getCategoryDeleteBlockReason = (id: number) => {
+    if ((categoryActiveUsage?.[id] ?? 0) > 0) {
+      return 'Masih dipakai produk aktif';
+    }
+    return null;
+  };
+
+  const requestDeletePm = (id: number) => {
+    const reason = getPaymentMethodDeleteBlockReason(id);
+    if (reason) {
+      toast.error(reason);
       return;
     }
+    setPendingDeletePmId(id);
+    setDeletePmConfirmOpen(true);
+  };
 
-    await db.paymentMethods.delete(id);
-    toast.success('Dihapus');
+  const confirmDeletePm = async () => {
+    if (!pendingDeletePmId) return;
+    try {
+      await db.paymentMethods.delete(pendingDeletePmId);
+      toast.success('Metode pembayaran dihapus');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Gagal menghapus metode pembayaran');
+    } finally {
+      setDeletePmConfirmOpen(false);
+      setPendingDeletePmId(null);
+    }
   };
 
   const openCatAdd = () => { setCatEditId(null); setCatName(''); setCatIcon('📦'); setCatColor('#FF6B35'); setCatDialog(true); };
   const openCatEdit = (c: Category) => { setCatEditId(c.id!); setCatName(c.name); setCatIcon(c.icon); setCatColor(c.color); setCatDialog(true); };
   const saveCat = async () => {
     if (!catName.trim()) return;
-    if (catEditId) await db.categories.update(catEditId, { name: catName.trim(), icon: catIcon, color: catColor });
-    else await db.categories.add({ name: catName.trim(), icon: catIcon, color: catColor, createdAt: new Date(), isDeleted: 0, deletedAt: null });
+    try {
+      if (catEditId) await db.categories.update(catEditId, { name: catName.trim(), icon: catIcon, color: catColor });
+      else await db.categories.add({ name: catName.trim(), icon: catIcon, color: catColor, createdAt: new Date(), isDeleted: 0, deletedAt: null });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Gagal menyimpan kategori');
+      return;
+    }
     setCatDialog(false);
     toast.success('Kategori disimpan');
   };
-  const deleteCat = async (id: number) => {
-    const check = await canDeleteCategory(id);
-    if (!isCategoryDeletable(check)) {
-      if (check.reason === 'has_active_products') {
-        toast.error('Kategori masih dipakai produk aktif dan tidak bisa dihapus');
-      }
+
+  const requestDeleteCat = (id: number) => {
+    const reason = getCategoryDeleteBlockReason(id);
+    if (reason) {
+      toast.error(reason);
       return;
     }
+    setPendingDeleteCatId(id);
+    setDeleteCatConfirmOpen(true);
+  };
 
-    await db.categories.update(id, { isDeleted: 1, deletedAt: new Date() });
-    toast.success('Dihapus');
+  const confirmDeleteCat = async () => {
+    if (!pendingDeleteCatId) return;
+    try {
+      await db.categories.update(pendingDeleteCatId, { isDeleted: 1, deletedAt: new Date() });
+      toast.success('Kategori dihapus');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Gagal menghapus kategori');
+    } finally {
+      setDeleteCatConfirmOpen(false);
+      setPendingDeleteCatId(null);
+    }
   };
 
   const handleImport = () => {
@@ -453,22 +500,6 @@ export default function Pengaturan() {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const getPaymentMethodDeleteBlockReason = (id: number) => {
-    if (!paymentMethods) return null;
-    if (paymentMethods.length <= 1) return 'Minimal harus ada 1 metode pembayaran';
-    if ((paymentMethodUsage?.[id] ?? 0) > 0) {
-      return 'Sudah dipakai transaksi';
-    }
-    return null;
-  };
-
-  const getCategoryDeleteBlockReason = (id: number) => {
-    if ((categoryActiveUsage?.[id] ?? 0) > 0) {
-      return 'Masih dipakai produk aktif';
-    }
-    return null;
-  };
-
   return (
     <div className="px-4 pt-6 pb-4 space-y-5">
       <h1 className="text-xl font-bold flex items-center gap-2">
@@ -560,12 +591,12 @@ export default function Pengaturan() {
                 <p className="text-[10px] text-muted-foreground capitalize">{pm.category}</p>
               </div>
               <div className="flex gap-1">
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPmEdit(pm)}><Edit2 className="w-3 h-3" /></Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPmEdit(pm)} aria-label={`Edit ${pm.name}`}><Edit2 className="w-3 h-3" /></Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-destructive disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                  onClick={() => deletePm(pm.id!)}
+                  onClick={() => requestDeletePm(pm.id!)}
                   disabled={!!getPaymentMethodDeleteBlockReason(pm.id!)}
                   title={getPaymentMethodDeleteBlockReason(pm.id!) ?? 'Hapus metode pembayaran'}
                 >
@@ -596,12 +627,12 @@ export default function Pengaturan() {
                 <span className="text-sm font-medium">{c.name}</span>
               </div>
               <div className="flex gap-1">
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openCatEdit(c)}><Edit2 className="w-3 h-3" /></Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openCatEdit(c)} aria-label={`Edit ${c.name}`}><Edit2 className="w-3 h-3" /></Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-destructive disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                  onClick={() => deleteCat(c.id!)}
+                  onClick={() => requestDeleteCat(c.id!)}
                   disabled={!!getCategoryDeleteBlockReason(c.id!)}
                   title={getCategoryDeleteBlockReason(c.id!) ?? 'Hapus kategori'}
                 >
@@ -913,9 +944,9 @@ export default function Pengaturan() {
                 />
               </div>
             </div>
-            <div className="space-y-1.5"><Label>Nama Toko</Label><Input value={storeName} onChange={e => setStoreName(e.target.value)} className="h-11" /></div>
-            <div className="space-y-1.5"><Label>Alamat</Label><Input value={storeAddr} onChange={e => setStoreAddr(e.target.value)} className="h-11" /></div>
-            <div className="space-y-1.5"><Label>Telepon</Label><Input value={storePhone} onChange={e => setStorePhone(e.target.value)} className="h-11" type="tel" /></div>
+            <div className="space-y-1.5"><Label>Nama Toko</Label><Input value={storeName} onChange={e => setStoreName(e.target.value)} className="h-11" maxLength={100} /></div>
+            <div className="space-y-1.5"><Label>Alamat</Label><Input value={storeAddr} onChange={e => setStoreAddr(e.target.value)} className="h-11" maxLength={200} /></div>
+            <div className="space-y-1.5"><Label>Telepon</Label><Input value={storePhone} onChange={e => setStorePhone(e.target.value)} className="h-11" type="tel" maxLength={20} /></div>
             <Button className="w-full h-11" onClick={saveStore}>Simpan</Button>
           </div>
         </DialogContent>
@@ -926,7 +957,7 @@ export default function Pengaturan() {
         <DialogContent className="max-w-[95vw] rounded-xl">
           <DialogHeader><DialogTitle>{pmEditId ? 'Edit' : 'Tambah'} Metode Pembayaran</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
-            <div className="space-y-1.5"><Label>Nama</Label><Input value={pmName} onChange={e => setPmName(e.target.value)} placeholder="Contoh: Transfer BCA" className="h-11" /></div>
+            <div className="space-y-1.5"><Label>Nama</Label><Input value={pmName} onChange={e => setPmName(e.target.value)} placeholder="Contoh: Transfer BCA" className="h-11" maxLength={50} /></div>
             <div className="space-y-1.5">
               <Label>Kategori</Label>
               <div className="grid grid-cols-4 gap-2">
@@ -945,7 +976,7 @@ export default function Pengaturan() {
         <DialogContent className="max-w-[95vw] rounded-xl">
           <DialogHeader><DialogTitle>{catEditId ? 'Edit' : 'Tambah'} Kategori</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
-            <div className="space-y-1.5"><Label>Nama Kategori</Label><Input value={catName} onChange={e => setCatName(e.target.value)} placeholder="Contoh: Snack" className="h-11" /></div>
+            <div className="space-y-1.5"><Label>Nama Kategori</Label><Input value={catName} onChange={e => setCatName(e.target.value)} placeholder="Contoh: Snack" className="h-11" maxLength={50} /></div>
             <div className="space-y-1.5">
               <Label>Ikon</Label>
               <div className="flex flex-wrap gap-2">
@@ -962,6 +993,48 @@ export default function Pengaturan() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Payment Method Confirmation */}
+      <AlertDialog open={deletePmConfirmOpen} onOpenChange={setDeletePmConfirmOpen}>
+        <AlertDialogContent className="max-w-[90vw] rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Metode Pembayaran?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Metode pembayaran ini akan dihapus secara permanen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmDeletePm}
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Category Confirmation */}
+      <AlertDialog open={deleteCatConfirmOpen} onOpenChange={setDeleteCatConfirmOpen}>
+        <AlertDialogContent className="max-w-[90vw] rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Kategori?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Kategori ini akan dihapus secara permanen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmDeleteCat}
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,7 +1,9 @@
 import { db, type Product, type Transaction, type TransactionItemRecord } from '@/lib/db';
 
 function generateReceiptNumber(): string {
-  return `TX${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
+  const ts = Date.now().toString(36);
+  const rand = crypto.randomUUID().replace(/-/g, '').slice(0, 8);
+  return `TX-${ts}-${rand}`.toUpperCase();
 }
 
 export interface SaleCartItem {

@@ -78,6 +78,12 @@ export default function Produk() {
   const handleSave = async () => {
     if (!name.trim() || !categoryId || !sku.trim()) return;
 
+    const priceNum = Number(price) || 0;
+    if (priceNum <= 0) {
+      toast.error('Harga jual harus lebih dari 0');
+      return;
+    }
+
     // Check SKU uniqueness
     const existing = await db.products
       .where('sku')
@@ -93,9 +99,9 @@ export default function Produk() {
       name: name.trim(),
       sku: sku.trim(),
       categoryId: Number(categoryId),
-      price: Number(price) || 0,
+      price: priceNum,
       hpp: Number(hpp) || 0,
-      stock: Number(stock) || 0,
+      stock: Math.max(0, Number(stock) || 0),
       unit: unit.trim() || 'pcs',
       barcode: barcode.trim() || undefined,
       photo: photo || undefined,
@@ -103,19 +109,51 @@ export default function Produk() {
     };
 
     if (editProduct?.id) {
-      await db.products.update(editProduct.id, data);
+      try {
+        await db.products.update(editProduct.id, data);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Gagal menyimpan produk');
+        return;
+      }
     } else {
-      await db.products.add({ ...data, createdAt: new Date(), isDeleted: 0, deletedAt: null } as Product);
+      try {
+        await db.products.add({ ...data, createdAt: new Date(), isDeleted: 0, deletedAt: null } as Product);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Gagal menambah produk');
+        return;
+      }
     }
     setDialogOpen(false);
   };
 
   const handleDelete = async () => {
     if (deleteId) {
-      await db.products.update(deleteId, { isDeleted: 1, deletedAt: new Date() });
+      try {
+        await db.products.update(deleteId, { isDeleted: 1, deletedAt: new Date() });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Gagal menghapus produk');
+        return;
+      }
       setDeleteId(null);
     }
   };
+
+  // Loading state
+  if (products === undefined) {
+    return (
+      <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4.5rem)] flex flex-col">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <PackageIcon className="w-5 h-5 text-primary" />
+            Produk
+          </h1>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-sm text-muted-foreground">Memuat data produk...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4.5rem)] flex flex-col gap-4 overflow-hidden">
@@ -201,10 +239,10 @@ export default function Produk() {
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`}>
                         <Edit2 className="w-3.5 h-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(p.id!)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(p.id!)} aria-label={`Hapus ${p.name}`}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
@@ -273,12 +311,12 @@ export default function Produk() {
 
             <div className="space-y-1.5">
               <Label>Nama Produk *</Label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="Contoh: Nasi Goreng" className="h-11" />
+              <Input value={name} onChange={e => setName(e.target.value)} placeholder="Contoh: Nasi Goreng" className="h-11" maxLength={100} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>SKU *</Label>
-                <Input value={sku} onChange={e => setSku(e.target.value)} placeholder="Wajib diisi, contoh: NG001" className="h-11" />
+                <Input value={sku} onChange={e => setSku(e.target.value)} placeholder="Wajib diisi, contoh: NG001" className="h-11" maxLength={50} />
               </div>
               <div className="space-y-1.5">
                 <Label>Kategori *</Label>
@@ -319,7 +357,7 @@ export default function Produk() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Stok Awal</Label>
-                <Input type="number" value={stock} onChange={e => setStock(e.target.value)} placeholder="0" className="h-11" />
+                <Input type="number" value={stock} onChange={e => setStock(e.target.value)} placeholder="0" className="h-11" min={0} max={999999} />
               </div>
               <div className="space-y-1.5">
                 <Label>Satuan</Label>
@@ -336,7 +374,7 @@ export default function Produk() {
             <div className="space-y-1.5">
               <Label>Barcode</Label>
               <div className="flex gap-2">
-                <Input value={barcode} onChange={e => setBarcode(e.target.value)} placeholder="Opsional" className="h-11 flex-1" />
+                  <Input value={barcode} onChange={e => setBarcode(e.target.value)} placeholder="Opsional" className="h-11 flex-1" maxLength={50} />
                 <Button
                   type="button"
                   variant="outline"

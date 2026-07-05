@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Product, type Category, type Transaction, type TransactionItemRecord } from '@/lib/db';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, Plus, Minus, ShoppingCart, X, Percent, Tag, CreditCard, Banknote, Check, ScanBarcode, Package as PackageIcon, ClipboardList, Save, Pencil, User, Hash, Trash2, Barcode } from 'lucide-react';
 import Receipt from '@/components/Receipt';
 import BarcodeScanner from '@/components/BarcodeScanner';
@@ -59,6 +59,7 @@ export default function Kasir() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelTargetTx, setCancelTargetTx] = useState<Transaction | null>(null);
   const [scanInput, setScanInput] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   const products = useLiveQuery(() => db.products.where('isDeleted').equals(0).toArray());
@@ -67,13 +68,13 @@ export default function Kasir() {
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
   const openBills = useLiveQuery(() => db.transactions.where('status').equals('open').reverse().sortBy('date'));
 
-  const cartProductIds = new Set(cart.map(c => c.product.id));
+  const cartProductIds = useMemo(() => new Set(cart.map(c => c.product.id)), [cart]);
 
-  const filtered = products?.filter(p => {
+  const filtered = useMemo(() => products?.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchCategory = filterCategory === 'all' || p.categoryId === Number(filterCategory);
     return matchSearch && matchCategory && (p.stock > 0 || cartProductIds.has(p.id!));
-  }) ?? [];
+  }) ?? [], [products, search, filterCategory, cartProductIds]);
 
   const doFullReset = () => {
     setCart([]);
@@ -86,6 +87,7 @@ export default function Kasir() {
     setTableNumber('');
     setRemarks('');
     setIsQuickAdding(false);
+    setIsSubmitting(false);
   };
 
   // === Cart Operations ===
@@ -155,19 +157,23 @@ export default function Kasir() {
     notes: c.notes,
   }));
 
-  const subtotal = cart.reduce((sum, item) => sum + getItemSubtotal(item), 0);
-  const txDiscountRaw = txDiscountType === 'percentage' ? subtotal * (Number(txDiscountValue) || 0) / 100 : txDiscountType === 'nominal' ? Number(txDiscountValue) || 0 : 0;
-  const txDiscountAmount = Math.min(subtotal, Math.max(0, txDiscountRaw));
-  const total = Math.max(0, subtotal - txDiscountAmount);
-  const paidAmount = Number(paymentAmount) || 0;
-  const change = paidAmount - total;
-  const totalHpp = cart.reduce((sum, item) => sum + (item.unitHpp * item.qty), 0);
-  const totalProfit = total - totalHpp;
+  const { subtotal, txDiscountAmount, total, paidAmount, change, totalHpp, totalProfit } = useMemo(() => {
+    const sub = cart.reduce((sum, item) => sum + getItemSubtotal(item), 0);
+    const txDiscountRaw = txDiscountType === 'percentage' ? sub * (Number(txDiscountValue) || 0) / 100 : txDiscountType === 'nominal' ? Number(txDiscountValue) || 0 : 0;
+    const txDisc = Math.min(sub, Math.max(0, txDiscountRaw));
+    const tot = Math.max(0, sub - txDisc);
+    const paid = Number(paymentAmount) || 0;
+    const chg = paid - tot;
+    const hpp = cart.reduce((sum, item) => sum + (item.unitHpp * item.qty), 0);
+    const profit = tot - hpp;
+    return { subtotal: sub, txDiscountAmount: txDisc, total: tot, paidAmount: paid, change: chg, totalHpp: hpp, totalProfit: profit };
+  }, [cart, txDiscountType, txDiscountValue, paymentAmount]);
 
   // === Open Bill Operations ===
 
   const saveOpenBill = async () => {
-    if (cart.length === 0) { toast.error('Keranjang kosong'); return; }
+    if (cart.length === 0 || isSubmitting) { toast.error('Keranjang kosong'); return; }
+    setIsSubmitting(true);
 
     try {
       const result = await saveOpenBillTx({
@@ -187,6 +193,8 @@ export default function Kasir() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Gagal menyimpan bill');
       return;
+    } finally {
+      setIsSubmitting(false);
     }
 
     doFullReset();
@@ -337,7 +345,8 @@ export default function Kasir() {
   // === Checkout ===
 
   const handleCheckout = async () => {
-    if (!paymentMethodId || paidAmount < total) return;
+    if (!paymentMethodId || paidAmount < total || isSubmitting) return;
+    setIsSubmitting(true);
 
     try {
       const result = await checkoutSale({
@@ -368,6 +377,8 @@ export default function Kasir() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Gagal memproses transaksi');
       return;
+    } finally {
+      setIsSubmitting(false);
     }
 
   };
@@ -450,7 +461,7 @@ export default function Kasir() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Cari produk..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-10" />
         </div>
-        <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => setScannerOpen(true)}>
+        <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => setScannerOpen(true)} aria-label="Scan barcode">
           <ScanBarcode className="w-5 h-5" />
         </Button>
       </div>
@@ -472,11 +483,11 @@ export default function Kasir() {
 
       {/* Category chips */}
       <div className="flex gap-2 overflow-x-auto scrollbar-hide mb-3 pb-1 pr-4" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
-        <button onClick={() => setFilterCategory('all')} className={cn('shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors', filterCategory === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+        <button type="button" onClick={() => setFilterCategory('all')} className={cn('shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors', filterCategory === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
           Semua
         </button>
         {categories?.map(c => (
-          <button key={c.id} onClick={() => setFilterCategory(c.id!.toString())} className={cn('shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors', filterCategory === c.id!.toString() ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+          <button type="button" key={c.id} onClick={() => setFilterCategory(c.id!.toString())} className={cn('shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors', filterCategory === c.id!.toString() ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
             {c.icon} {c.name}
           </button>
         ))}
@@ -651,7 +662,7 @@ export default function Kasir() {
                   variant="outline"
                   className="flex-1 h-12 text-sm font-semibold"
                   onClick={saveOpenBill}
-                  disabled={cart.length === 0}
+                  disabled={cart.length === 0 || isSubmitting}
                 >
                   <Save className="w-4 h-4 mr-2" />
                   Simpan Bill
@@ -828,7 +839,7 @@ export default function Kasir() {
                   variant="outline"
                   className="flex-1 h-12 text-sm font-semibold"
                   onClick={saveOpenBill}
-                  disabled={cart.length === 0}
+                  disabled={cart.length === 0 || isSubmitting}
                 >
                   <Save className="w-4 h-4 mr-2" />
                   Simpan Bill
@@ -1019,9 +1030,9 @@ export default function Kasir() {
               </div>
             )}
 
-            <Button className="w-full h-12 text-base font-semibold" onClick={handleCheckout} disabled={!paymentMethodId || paidAmount < total}>
+            <Button className="w-full h-12 text-base font-semibold" onClick={handleCheckout} disabled={!paymentMethodId || paidAmount < total || isSubmitting}>
               <Check className="w-5 h-5 mr-2" />
-              Konfirmasi Transaksi
+              {isSubmitting ? 'Memproses...' : 'Konfirmasi Transaksi'}
             </Button>
           </div>
         </DialogContent>

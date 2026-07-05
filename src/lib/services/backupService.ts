@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 
 type BackupRecord = Record<string, unknown>;
 
+const CURRENT_BACKUP_VERSION = 2;
+
 export interface BackupData {
   version: number;
   categories?: BackupRecord[];
@@ -56,7 +58,7 @@ function downloadBackupInBrowser(fileName: string, json: string) {
   a.href = url;
   a.download = fileName;
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 function buildBackupFileName() {
@@ -67,7 +69,12 @@ function buildBackupFileName() {
 }
 
 async function buildBackupPayload() {
-  return {
+  return db.transaction('r', [
+    db.categories, db.products, db.suppliers,
+    db.stockIns, db.stockOuts, db.hppHistory,
+    db.paymentMethods, db.transactions, db.transactionItems,
+    db.storeSettings,
+  ], async () => ({
     version: 2,
     exportedAt: new Date().toISOString(),
     categories: await db.categories.toArray(),
@@ -80,7 +87,7 @@ async function buildBackupPayload() {
     transactions: await db.transactions.toArray(),
     transactionItems: await db.transactionItems.toArray(),
     storeSettings: await db.storeSettings.toArray(),
-  };
+  }));
 }
 
 async function writeBackupFileToDocuments(fileName: string, json: string) {
@@ -113,9 +120,9 @@ export async function exportBackupData() {
     }
 
     await saveBackupTimestamp();
-  } catch {
+  } catch (error) {
     toast.error('Gagal membuat backup');
-    throw new Error('Backup export failed');
+    throw error;
   }
 }
 
@@ -201,30 +208,43 @@ export function backupHasData(data: BackupData) {
   });
 }
 
-function hasRequiredFields(record: BackupRecord, requiredKeys: string[]) {
-  return requiredKeys.every((key) => record[key] !== undefined && record[key] !== null);
+type FieldValidator = [field: string, type: string];
+
+function hasValidFields(record: BackupRecord, validators: FieldValidator[]) {
+  return validators.every(([key, expectedType]) => {
+    const value = record[key];
+    if (value === undefined || value === null) return false;
+    return typeof value === expectedType;
+  });
 }
 
 function validateBackupDataShape(data: BackupData) {
-  const tableValidators: Partial<Record<typeof BACKUP_TABLE_KEYS[number], string[]>> = {
-    categories: ['name', 'color', 'icon'],
-    products: ['name', 'sku', 'categoryId', 'price', 'hpp', 'stock', 'unit'],
-    suppliers: ['name'],
-    stockIns: ['productId', 'supplierId', 'quantity', 'buyPrice', 'totalPrice', 'date'],
-    stockOuts: ['productId', 'quantity', 'reason', 'date'],
-    hppHistory: ['productId', 'oldHpp', 'newHpp', 'source', 'date'],
-    paymentMethods: ['name', 'category', 'isDefault', 'createdAt'],
-    transactions: ['subtotal', 'total', 'paymentMethodId', 'paymentAmount', 'change', 'profit', 'date', 'receiptNumber', 'status'],
-    transactionItems: ['transactionId', 'productId', 'productName', 'quantity', 'price', 'hpp', 'subtotal'],
-    storeSettings: ['storeName', 'address', 'phone', 'receiptFooter', 'onboardingDone', 'deviceId'],
+  // Version compatibility check
+  if (data.version > CURRENT_BACKUP_VERSION) {
+    throw new Error(
+      `Backup ini dari versi lebih baru (v${data.version}). Update aplikasi terlebih dahulu.`
+    );
+  }
+
+  const tableValidators: Partial<Record<typeof BACKUP_TABLE_KEYS[number], FieldValidator[]>> = {
+    categories: [['name', 'string'], ['color', 'string'], ['icon', 'string']],
+    products: [['name', 'string'], ['sku', 'string'], ['categoryId', 'number'], ['price', 'number'], ['hpp', 'number'], ['stock', 'number'], ['unit', 'string']],
+    suppliers: [['name', 'string']],
+    stockIns: [['productId', 'number'], ['supplierId', 'number'], ['quantity', 'number'], ['buyPrice', 'number'], ['totalPrice', 'number']],
+    stockOuts: [['productId', 'number'], ['quantity', 'number'], ['reason', 'string']],
+    hppHistory: [['productId', 'number'], ['oldHpp', 'number'], ['newHpp', 'number'], ['source', 'string']],
+    paymentMethods: [['name', 'string'], ['category', 'string']],
+    transactions: [['subtotal', 'number'], ['total', 'number'], ['paymentMethodId', 'number'], ['paymentAmount', 'number'], ['change', 'number'], ['profit', 'number'], ['receiptNumber', 'string'], ['status', 'string']],
+    transactionItems: [['transactionId', 'number'], ['productId', 'number'], ['productName', 'string'], ['quantity', 'number'], ['price', 'number'], ['hpp', 'number'], ['subtotal', 'number']],
+    storeSettings: [['storeName', 'string'], ['address', 'string'], ['phone', 'string'], ['receiptFooter', 'string']],
   };
 
   for (const tableName of BACKUP_TABLE_KEYS) {
-    const keys = tableValidators[tableName];
-    if (!keys) continue;
+    const validators = tableValidators[tableName];
+    if (!validators) continue;
     const rows = data[tableName];
     if (!rows) continue;
-    const invalidRow = rows.find((row) => !row || typeof row !== 'object' || !hasRequiredFields(row, keys));
+    const invalidRow = rows.find((row) => !row || typeof row !== 'object' || !hasValidFields(row, validators));
     if (invalidRow) {
       throw new Error(`Format backup tidak valid pada tabel: ${tableName}`);
     }

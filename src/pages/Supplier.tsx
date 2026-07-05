@@ -106,8 +106,8 @@ export default function SupplierPage() {
                     {s.notes && <p className="text-xs text-muted-foreground mt-1 italic">{s.notes}</p>}
                   </div>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(s)}><Edit2 className="w-3.5 h-3.5" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(s.id!)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(s)} aria-label={`Edit ${s.name}`}><Edit2 className="w-3.5 h-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(s.id!)} aria-label={`Hapus ${s.name}`}><Trash2 className="w-3.5 h-3.5" /></Button>
                   </div>
                 </div>
               </CardContent>

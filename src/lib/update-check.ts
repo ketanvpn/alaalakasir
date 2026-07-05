@@ -63,9 +63,19 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 15000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export async function checkForAppUpdate(): Promise<AppUpdateInfo> {
   const headers = { Accept: 'application/vnd.github+json' };
-  const latestReleaseResponse = await fetch(`https://api.github.com/repos/${APP_REPOSITORY}/releases/latest`, {
+  const latestReleaseResponse = await fetchWithTimeout(`https://api.github.com/repos/${APP_REPOSITORY}/releases/latest`, {
     headers,
     cache: 'no-store',
   });
@@ -83,7 +93,7 @@ export async function checkForAppUpdate(): Promise<AppUpdateInfo> {
     };
   }
 
-  const response = await fetch(`https://api.github.com/repos/${APP_REPOSITORY}/tags`, {
+  const response = await fetchWithTimeout(`https://api.github.com/repos/${APP_REPOSITORY}/tags`, {
     headers,
     cache: 'no-store',
   });

@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Transaction, type TransactionItemRecord } from '@/lib/db';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { ArrowLeft, Search, Receipt as ReceiptIcon, Calendar, ChevronRight, ShoppingBag, CalendarIcon, X, Trash2, ShoppingCart, Download } from 'lucide-react';
@@ -76,7 +76,7 @@ export default function TransactionHistory() {
   const getPaymentName = (pmId: number) =>
     paymentMethods?.find(pm => pm.id === pmId)?.name || 'Tunai';
 
-  const filtered = transactions?.filter(tx => {
+  const filtered = useMemo(() => transactions?.filter(tx => {
     // Status filter
     if (filterStatus !== 'all' && tx.status !== filterStatus) return false;
     // Date filter
@@ -98,17 +98,19 @@ export default function TransactionHistory() {
       );
     }
     return true;
-  }) ?? [];
+  }) ?? [], [transactions, filterStatus, dateFrom, dateTo, search, txItemsMap]);
 
   // Group by date
-  const grouped = filtered.reduce<Record<string, Transaction[]>>((acc, tx) => {
-    const key = format(new Date(tx.date), 'yyyy-MM-dd');
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(tx);
-    return acc;
-  }, {});
-
-  const dateKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+  const { grouped, dateKeys } = useMemo(() => {
+    const g = filtered.reduce<Record<string, Transaction[]>>((acc, tx) => {
+      const key = format(new Date(tx.date), 'yyyy-MM-dd');
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(tx);
+      return acc;
+    }, {});
+    const keys = Object.keys(g).sort((a, b) => b.localeCompare(a));
+    return { grouped: g, dateKeys: keys };
+  }, [filtered]);
 
   const filteredCompleted = filtered.filter(t => t.status !== 'open');
   const filteredTotal = filteredCompleted.reduce((s, t) => s + t.total, 0);
@@ -188,7 +190,7 @@ export default function TransactionHistory() {
     <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4.5rem)] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)} aria-label="Kembali">
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <h1 className="text-xl font-bold flex items-center gap-2 flex-1">
@@ -259,7 +261,7 @@ export default function TransactionHistory() {
         </Popover>
 
         {hasDateFilter && (
-          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={clearDateFilter}>
+          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={clearDateFilter} aria-label="Hapus filter tanggal">
             <X className="w-4 h-4" />
           </Button>
         )}

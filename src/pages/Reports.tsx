@@ -75,6 +75,23 @@ export default function Laporan() {
 
   const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`;
 
+  // Loading state
+  if (transactions === undefined) {
+    return (
+      <div className="px-4 pt-6 pb-20 space-y-5">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-primary" />
+            Laporan
+          </h1>
+        </div>
+        <div className="flex items-center justify-center py-20">
+          <p className="text-sm text-muted-foreground">Memuat data laporan...</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleExport = async () => {
     if (exporting) return;
     if (!transactions || transactions.length === 0) {

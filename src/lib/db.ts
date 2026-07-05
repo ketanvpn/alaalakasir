@@ -391,40 +391,42 @@ async function migrateLegacyDatabaseIfNeeded() {
 export async function seedDefaultData() {
   await migrateLegacyDatabaseIfNeeded();
 
-  const categoryCount = await db.categories.count();
-  if (categoryCount === 0) {
-    await db.categories.bulkAdd([
-      { name: 'Makanan', color: '#FF6B35', icon: '🍕', createdAt: new Date(), isDeleted: 0, deletedAt: null },
-      { name: 'Minuman', color: '#4ECDC4', icon: '🥤', createdAt: new Date(), isDeleted: 0, deletedAt: null },
-      { name: 'Lainnya', color: '#95A5A6', icon: '📦', createdAt: new Date(), isDeleted: 0, deletedAt: null },
-    ]);
-  }
-
-  const pmCount = await db.paymentMethods.count();
-  if (pmCount === 0) {
-    await db.paymentMethods.bulkAdd([
-      { name: 'Tunai', category: 'tunai', isDefault: true, createdAt: new Date() },
-      { name: 'Transfer Bank', category: 'transfer', isDefault: false, createdAt: new Date() },
-      { name: 'QRIS', category: 'qris', isDefault: false, createdAt: new Date() },
-    ]);
-  }
-
-  const storeCount = await db.storeSettings.count();
-  if (storeCount === 0) {
-    await db.storeSettings.add({
-      storeName: 'Toko Saya',
-      address: '',
-      phone: '',
-      receiptFooter: 'Terima kasih atas kunjungan Anda!',
-      onboardingDone: false,
-      lastBackupAt: null,
-      deviceId: crypto.randomUUID(),
-    });
-  } else {
-    // Fallback: if storeSettings exists but has no deviceId, generate one
-    const settings = await db.storeSettings.toCollection().first();
-    if (settings && !settings.deviceId) {
-      await db.storeSettings.update(settings.id!, { deviceId: crypto.randomUUID() });
+  await db.transaction('rw', [db.categories, db.paymentMethods, db.storeSettings], async () => {
+    const categoryCount = await db.categories.count();
+    if (categoryCount === 0) {
+      await db.categories.bulkAdd([
+        { name: 'Makanan', color: '#FF6B35', icon: '🍕', createdAt: new Date(), isDeleted: 0, deletedAt: null },
+        { name: 'Minuman', color: '#4ECDC4', icon: '🥤', createdAt: new Date(), isDeleted: 0, deletedAt: null },
+        { name: 'Lainnya', color: '#95A5A6', icon: '📦', createdAt: new Date(), isDeleted: 0, deletedAt: null },
+      ]);
     }
-  }
+
+    const pmCount = await db.paymentMethods.count();
+    if (pmCount === 0) {
+      await db.paymentMethods.bulkAdd([
+        { name: 'Tunai', category: 'tunai', isDefault: true, createdAt: new Date() },
+        { name: 'Transfer Bank', category: 'transfer', isDefault: false, createdAt: new Date() },
+        { name: 'QRIS', category: 'qris', isDefault: false, createdAt: new Date() },
+      ]);
+    }
+
+    const storeCount = await db.storeSettings.count();
+    if (storeCount === 0) {
+      await db.storeSettings.add({
+        storeName: 'Toko Saya',
+        address: '',
+        phone: '',
+        receiptFooter: 'Terima kasih atas kunjungan Anda!',
+        onboardingDone: false,
+        lastBackupAt: null,
+        deviceId: crypto.randomUUID(),
+      });
+    } else {
+      // Fallback: if storeSettings exists but has no deviceId, generate one
+      const settings = await db.storeSettings.toCollection().first();
+      if (settings && !settings.deviceId) {
+        await db.storeSettings.update(settings.id!, { deviceId: crypto.randomUUID() });
+      }
+    }
+  });
 }
