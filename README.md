@@ -1,259 +1,167 @@
-# 🧾 AlaalaKasir
+# 🧾 AlaalaKasir (POS & Cashier App)
 
-A free, offline-first, open source Point of Sale (POS) Progressive Web App built for Indonesian Micro, Small, and Medium Enterprises (UMKM). Data transaksi utama disimpan lokal di perangkat pengguna menggunakan IndexedDB, tanpa registrasi dan tanpa server aplikasi untuk operasional kasir harian.
+<p align="center">
+  <img src="public/icons/icon-512.png" alt="AlaalaKasir Logo" width="120" height="120" style="border-radius: 24px;" />
+</p>
 
----
+<p align="center">
+  <b>Aplikasi Kasir POS (Point of Sale) Offline-First & Gratis untuk UMKM, Retail, Toko Kelontong, dan Usaha F&B Indonesia.</b>
+</p>
 
-## ✨ Features
-
-- **POS / Cashier** — Full cashier interface with cart, per-item & per-transaction discounts, payment method selection, and automatic change calculation
-- **Open Bill** — Save transactions as open bills for later checkout, with customer name, table number, and remarks
-- **Responsive Layout** — Mobile-first phone UI with landscape/tablet mode featuring side-by-side cashier (products + cart) and adaptive grid columns
-- **Barcode Scanning** — Scan product barcodes via camera (supports EAN-13, EAN-8, UPC-A, UPC-E, Code-128, QR) or manual keyboard entry
-- **Product Management** — Complete CRUD with categories, SKU (unique & required), units, photos, and barcode support
-- **Stock Management** — Stock in (from suppliers) and stock out (damaged, lost, returned, etc.)
-- **Automatic COGS (HPP)** — Cost of Goods Sold is automatically calculated using the weighted average method on each stock-in
-- **Sales Reports** — 7/30 day sales charts, top products, total revenue & profit
-- **Transaction History** — Browse completed transactions with open bill filter tabs
-- **Supplier Management** — Manage supplier contacts and details
-- **Backup & Restore** — Export/import all data as JSON, with backup reminders
-- **PWA** — Installable to home screen, offline-first with Service Worker (Workbox), supports any orientation
-- **Onboarding** — Interactive tutorial for first-time users
-- **Dark Mode** — Full dark theme support
-- **Theme Customization** — Pick your preferred accent color
+<p align="center">
+  <a href="https://github.com/ketanvpn/alaalakasir/releases"><img src="https://img.shields.io/github/v/release/ketanvpn/alaalakasir?color=orange&label=Release&logo=github" alt="Latest Release" /></a>
+  <img src="https://img.shields.io/badge/Platform-Android%20%7C%20PWA%20%7C%20Web-blue" alt="Platform" />
+  <img src="https://img.shields.io/badge/Offline--First-Dexie.js%20IndexedDB-success" alt="Offline First" />
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="License" />
+</p>
 
 ---
 
-## 📱 Platform Support
+## 🌟 Mengapa AlaalaKasir?
 
-AlaalaKasir saat ini adalah **Progressive Web App (PWA)** dengan wrapper Android berbasis Capacitor.
+Sebagian besar aplikasi POS di pasaran mewajibkan biaya langganan bulanan dan koneksi internet stabil. **AlaalaKasir** dirancang sebagai solusi kasir mandiri (*offline-first*):
 
-| Platform | Status | Catatan |
-|----------|--------|---------|
-| Desktop browser | Supported | Chrome/Edge/Firefox modern |
-| Android browser | Supported | Bisa install ke home screen sebagai PWA |
-| iPhone/iPad Safari | Supported with limitations | Bisa Add to Home Screen, tetapi beberapa Web API seperti Bluetooth tidak tersedia |
-| Android APK | Supported via Capacitor | Folder Android tersedia, build APK membutuhkan JDK/Android toolchain |
-| iOS IPA/App Store | Not included yet | Perlu wrapper native dan proses Apple Developer |
-
-### Offline Notes
-
-- Data kasir, produk, stok, supplier, transaksi, dan pengaturan disimpan di IndexedDB perangkat.
-- Aplikasi bisa berjalan offline setelah aset PWA berhasil tersimpan oleh Service Worker.
-- Backup manual tetap penting karena data lokal browser bisa hilang jika storage browser dibersihkan, perangkat rusak, atau aplikasi dihapus.
-- Fitur berbagi, link eksternal, dan beberapa API perangkat tetap bergantung pada dukungan browser/perangkat.
+- 🔒 **100% Privasi & Data Milik Anda**: Seluruh database produk, stok, kasbon, dan transaksi tersimpan aman di penyimpanan lokal perangkat (*IndexedDB*) tanpa perlu server backend pihak ketiga.
+- ⚡ **Tanpa Registrasi & Tanpa Internet**: Buka aplikasi dan langsung bisa transaksi di mana saja, kapan saja—bahkan di daerah tanpa sinyal internet.
+- 🖨️ **Dukungan Printer Thermal Bluetooth (58mm/80mm)**: Cetak struk belanja fisik langsung via driver printer ESC/POS Bluetooth (BLE & Serial) tanpa setup rumit.
+- 📱 **Mobile & Tablet Split-View**: Tampilan antarmuka kasir yang dirancang ergonomis untuk layar HP (*floating cart pill & sticky headers*) maupun tablet/desktop (*persistent split-view*).
 
 ---
 
-## 🛠️ Tech Stack
+## ✨ Fitur Unggulan
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | React 18 + TypeScript |
-| Build Tool | Vite |
-| Styling | Tailwind CSS + shadcn/ui |
-| Theming | next-themes (dark mode) |
-| Database | IndexedDB via Dexie.js |
-| Charts | Recharts |
-| Routing | React Router DOM v6 |
-| Forms & Validation | React Hook Form + Zod |
-| State | @tanstack/react-query |
-| Icons | Lucide React |
-| Date | date-fns (id locale) |
-| PWA | vite-plugin-pwa (Workbox) |
-| Barcode | html5-qrcode (camera scanner + manual input) |
-| Receipt | html2canvas (to PNG), Web Share, Web Bluetooth Print where supported |
-| Font | Plus Jakarta Sans |
+### 🛒 1. Kasir POS & Transaksi Cepat
+- **Katalog & Keranjang Pintar**: Pencarian cepat nama/barcode, filter kategori dinamis, dan kontrol jumlah barang yang mudah.
+- **Diskon Fleksibel**: Diskon per item produk maupun diskon total transaksi (persentase `%` atau nominal `Rp`).
+- **Open Bill / Simpan Pesanan**: Simpan pesanan pelanggan yang sedang makan di tempat (*dine-in*) lengkap dengan nomor meja dan catatan khusus.
+- **Scan Barcode Cepat**: Scan barcode fisik via kamera smartphone atau scanner barcode USB/Bluetooth.
+
+### 👥 2. Manajemen Pelanggan & Buku Kasbon / Piutang
+- **Catat Kasbon Saat Checkout**: Pilihan metode pembayaran kasbon / bayar tempo langsung dari kasir.
+- **Buku Piutang Digital**: Pantau total saldo piutang toko, daftar pelanggan berhutang, dan tanggal jatuh tempo.
+- **Riwayat Cicilan**: Catat pembayaran cicilan atau pelunasan dengan berbagai metode pembayaran.
+- **Kirim Tagihan WhatsApp**: Buat dan kirim pesan rincian tagihan kasbon secara otomatis dan sopan langsung ke nomor WhatsApp pelanggan.
+
+### 📦 3. Manajemen Produk & Inventaris Stok
+- **Katalog Produk Lengkap**: SKU unik, kategori dengan warna/ikon kustom, foto produk, harga jual, dan satuan unit (pcs, kg, porsi, renceng, dll).
+- **Stok Masuk & Stok Keluar**: Catat penerimaan barang dari supplier serta pencatatan stok rusak, hilang, atau retur.
+- **HPP Otomatis (Metode Rata-rata Tertimbang)**: Harga Pokok Penjualan (HPP) terhitung otomatis secara matematis setiap kali ada stok masuk baru.
+
+### 🖨️ 4. Struk Belanja & Driver Printer Bluetooth
+- **Cetak Struk Thermal**: Format struk 58mm/80mm standar POS, nama toko, logo, rincian barang, diskon, kembalian, dan catatan kaki (*footer*).
+- **Driver Terisolasi**: Mendukung Bluetooth Low Energy (BLE), Bluetooth Serial Classic (Android Native), dan Web Print fallback.
+- **Bagikan Struk Digital**: Ekspor struk sebagai teks rapi untuk dikirim via WhatsApp atau media sosial.
+
+### 📊 5. Laporan Keuangan & Analitik Penjualan
+- **Dashboard Bisnis**: Ringkasan omzet penjualan hari ini, estimasi laba bersih, transaksi terakhir, dan produk terlaris.
+- **Laporan Penjualan**: Grafik tren penjualan harian/bulanan, rincian metode pembayaran, dan margin keuntungan.
+- **Ekspor Laporan**: Ekspor data laporan lengkap ke format **CSV**, **Excel**, dan cetak ringkasan PDF.
+
+### ⚙️ 6. Pengaturan & Utilitas Toko
+- **Pencadangan & Pemulihan (Backup/Restore)**: Ekspor seluruh database ke file JSON aman dengan sistem pengingat pencadangan berkala.
+- **Kustomisasi Tema & Dark Mode**: Pilihan warna aksen toko dan dukungan tema gelap (*Dark Mode*) penuh.
+- **In-App Auto Updater**: Pembaruan aplikasi Android langsung dari dalam aplikasi via GitHub Release API.
 
 ---
 
-## 🚀 Getting Started
+## 🛠️ Arsitektur & Teknologi
 
-### Prerequisites
+```text
+┌──────────────────────────────────────────────────────────┐
+│             UI / Presentation Layer (React 18)           │
+│  Tailwind CSS • Shadcn UI • Lucide Icons • Split-View    │
+├──────────────────────────┬───────────────────────────────┤
+│    Domain Services       │         Hardware Drivers      │
+│  • salesService          │  • printerService (ESC/POS)   │
+│  • customerService       │  • Bluetooth BLE / Serial     │
+│  • stockService          │  • Camera Barcode Scanner     │
+│  • backupService         │  • In-App APK Updater         │
+├──────────────────────────┴───────────────────────────────┤
+│       Offline Storage Layer (Dexie.js IndexedDB)         │
+│  Categories • Products • Transactions • Debts • Settings │
+├──────────────────────────────────────────────────────────┤
+│             Cross-Platform Native Runtime                │
+│    Progressive Web App (PWA)  •  Capacitor Android Core  │
+└──────────────────────────────────────────────────────────┘
+```
 
-- [Bun](https://bun.sh/) (recommended) or [Node.js](https://nodejs.org/) v18+ (via [nvm](https://github.com/nvm-sh/nvm))
-- npm, yarn, or bun
+| Lapisan | Teknologi | Kegunaan |
+|---|---|---|
+| **Framework** | [React 18](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) | Antarmuka pengguna interaktif & tipe data ketat |
+| **Build Tool** | [Vite](https://vitejs.dev/) | Toolchain build super cepat |
+| **Styling** | [Tailwind CSS](https://tailwindcss.com/) | Styling responsif & mobile-first |
+| **UI Primitives** | [Radix UI](https://www.radix-ui.com/) / [Shadcn UI](https://ui.shadcn.com/) | Komponen dialog, sheet, badge, dan modal aksesibel |
+| **Database Lokal** | [Dexie.js](https://dexie.org/) (IndexedDB) | Database lokal NoSQL cepat dengan skema migrasi terisolasi |
+| **Hardware / Native** | [@capacitor/core](https://capacitorjs.com/) | Wrapper Android APK, akses storage lokal, & native HTTP |
+| **Pengujian** | [Vitest](https://vitest.dev/) | Unit test suite & validasi logika bisnis |
 
-### Installation
+---
 
+## 🚀 Panduan Instalasi & Pengembangan
+
+### 1. Kebutuhan Lingkungan
+- [Node.js](https://nodejs.org/) versi 18 atau lebih baru
+- `npm` atau `pnpm`
+- (Opsional untuk Android APK): Android Studio & JDK 17+
+
+### 2. Clone Repositori
 ```bash
-# Clone the repository
-git clone https://github.com/user/alaalakasir.git
+git clone https://github.com/ketanvpn/alaalakasir.git
 cd alaalakasir
+```
 
-# Install dependencies
+### 3. Install Dependensi
+```bash
 npm install
+```
 
-# Start the development server
+### 4. Menjalankan Server Development
+```bash
 npm run dev
 ```
+Buka browser di `http://localhost:8080`.
 
-The app will be running at `http://localhost:8080`.
+### 5. Menjalankan Pengujian (Unit Tests)
+```bash
+npm test
+# atau untuk sekali jalan:
+npx vitest run
+```
 
-### Production Build
-
+### 6. Build Produksi Web / PWA
 ```bash
 npm run build
-npm run preview
 ```
+File build produksi akan berada di folder `dist/`.
 
-### Version Tags
-
-Aplikasi menampilkan versi dari build-time variable `VITE_APP_VERSION`. Jika tidak diisi, versi akan mengikuti `package.json`.
-
-Untuk rilis dari GitHub tag, gunakan format semantic version:
-
+### 7. Sinkronisasi & Build Android (Capacitor)
 ```bash
-git tag v0.4.1
-git push origin v0.4.1
-```
-
-Saat build berjalan dari tag GitHub, workflow CI mengisi `VITE_APP_VERSION` dari nama tag. Menu Pengaturan dapat mengecek tag terbaru di repository GitHub tanpa mengirim data toko atau transaksi.
-
-### Android APK Release
-
-APK dibuat oleh workflow **Android APK** saat tag `v*` dipush:
-
-```bash
-git tag v0.4.1
-git push origin v0.4.1
-```
-
-Workflow juga bisa dijalankan manual dari tab **Actions** dengan mengisi `release_tag`, misalnya `v0.4.1`, untuk meng-upload APK ke release yang sudah ada.
-
-APK hasil build akan tersedia sebagai artifact workflow dan, jika tag/release tersedia, akan di-upload ke GitHub Release sebagai asset.
-
-Untuk update APK tanpa uninstall, APK harus ditandatangani dengan keystore yang sama pada setiap rilis. Tambahkan GitHub Secrets berikut sebelum rilis publik:
-
-- `ANDROID_KEYSTORE_BASE64` — file `.jks` dalam bentuk base64
-- `ANDROID_KEYSTORE_PASSWORD`
-- `ANDROID_KEY_ALIAS`
-- `ANDROID_KEY_PASSWORD`
-
-Jika secrets belum ada, workflow APK akan gagal dengan pesan konfigurasi signing. Ini disengaja agar release tidak lagi diam-diam berisi debug APK yang tidak bisa dipakai untuk update stabil.
-
----
-
-## 📁 Project Structure
-
-```
-src/
-├── App.tsx                  # Root component & routing
-├── main.tsx                 # Entry point
-├── index.css                # Design tokens (HSL CSS variables)
-├── lib/
-│   ├── db.ts                # Dexie database schema, interfaces, seed data
-│   ├── utils.ts             # Utility functions (cn, etc.)
-│   ├── image-utils.ts       # Image compression utility
-├── components/
-│   ├── layout/
-│   │   ├── AppLayout.tsx    # Main layout (responsive: max-w-lg mobile, max-w-6xl tablet/landscape)
-│   │   └── BottomNav.tsx    # Bottom nav (5 tabs, center cashier CTA)
-│   ├── Onboarding.tsx       # First-run tutorial & store setup
-│   ├── BackupReminder.tsx   # Backup reminder & export utility
-│   ├── Receipt.tsx          # Receipt component (view, download, share, Bluetooth print)
-│   ├── BarcodeScanner.tsx   # Barcode/QR scanner via camera (EAN, UPC, Code-128, QR)
-│   ├── ThemeColorPicker.tsx # Accent color picker (8 presets)
-│   └── ui/                  # shadcn/ui components (40+)
-├── pages/
-│   ├── Dashboard.tsx        # Home: stats, quick actions, low stock alerts
-│   ├── Cashier.tsx          # POS / cashier (barcode scan input, camera scanner, side-by-side cart on landscape)
-│   ├── Products.tsx         # Product CRUD
-│   ├── Reports.tsx          # Sales reports & charts
-│   ├── Settings.tsx         # Settings (store, payments, categories, backup)
-│   ├── Supplier.tsx         # Supplier CRUD
-│   ├── StockIn.tsx          # Stock in + COGS calculation
-│   ├── StockOut.tsx         # Stock out
-│   ├── StockReport.tsx      # Stock movement reports
-│   ├── TransactionHistory.tsx # Transaction history with open bill filter tabs
-│   └── NotFound.tsx         # 404 page
-└── hooks/                   # Custom React hooks (usePWAInstall, useThemeColor, useIsMobile, useToast)
+npm run build
+npx cap sync android
+npx cap open android
 ```
 
 ---
 
-## 💾 Database
+## 📱 Unduh Aplikasi Android (APK)
 
-All data is stored locally in the browser using IndexedDB (via Dexie.js). No data is ever sent to any server.
+Anda dapat mengunduh file installer APK Android versi terbaru langsung dari halaman rilis resmi:
 
-### Tables
-
-| Table | Description |
-|-------|-------------|
-| `categories` | Product categories (name, color, icon) |
-| `products` | Master products (name, SKU, sell price, COGS, stock, unit) |
-| `suppliers` | Supplier data |
-| `stockIns` | Stock-in records |
-| `stockOuts` | Stock-out records |
-| `hppHistory` | COGS change audit trail |
-| `paymentMethods` | Payment methods (Cash, Bank Transfer, QRIS, etc.) |
-| `transactions` | Sales transactions (status: open/completed, customer name, table number, remarks) |
-| `transactionItems` | Individual items within each transaction (with per-item notes) |
-| `storeSettings` | Store settings & app state |
-
-### COGS Calculation (Weighted Average)
-
-When stock is received, COGS is automatically recalculated:
-
-```
-New COGS = ((Old Stock × Old COGS) + (New Qty × Buy Price)) / (Old Stock + New Qty)
-```
+👉 **[Unduh APK Terbaru di GitHub Releases](https://github.com/ketanvpn/alaalakasir/releases)**
 
 ---
 
-## 💬 Feedback & Feature Requests
+## 🤝 Kontribusi
 
-Got suggestions, feature ideas, or found a bug? Use GitHub Issues in this repository:
-
-👉 **GitHub Issues**
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Here's how:
-
-1. Fork this repository
-2. Create a feature branch (`git checkout -b feature/new-feature`)
-3. Commit your changes (`git commit -m 'Add new feature'`)
-4. Push to the branch (`git push origin feature/new-feature`)
-5. Open a Pull Request
-
-### Guidelines
-
-- All UI text is in **Bahasa Indonesia** (the app targets Indonesian users)
-- Use existing `shadcn/ui` components from `src/components/ui/`
-- All monetary values are stored as numbers representing Indonesian Rupiah (no decimals)
-- Format numbers using `toLocaleString('id-ID')`
-- New features must work fully offline (no API calls)
-- Use `useLiveQuery()` from `dexie-react-hooks` for reactive data binding
+Kontribusi selalu terbuka! Jika Anda ingin memperbaiki bug, menambahkan fitur, atau meningkatkan dokumentasi:
+1. Fork repositori ini.
+2. Buat branch fitur baru (`git checkout -b feature/fitur-keren`).
+3. Commit perubahan Anda (`git commit -m 'feat: tambah fitur keren'`).
+4. Push ke branch Anda (`git push origin feature/fitur-keren`).
+5. Buat **Pull Request**.
 
 ---
 
-## 📋 Roadmap
+## 📄 Lisensi
 
-- [ ] Export reports to Excel/CSV
-- [ ] Multi-language support (i18n)
-- [ ] Manual COGS adjustment
-- [ ] Receipt thermal printer via USB
-- [ ] Customer management
-
----
-
-## 📄 License
-
-[MIT License](LICENSE)
-
----
-
-## 🙏 Credits
-
-Built with ❤️ for Indonesian small businesses.
-
-- [React](https://react.dev/)
-- [Vite](https://vitejs.dev/)
-- [shadcn/ui](https://ui.shadcn.com/)
-- [Dexie.js](https://dexie.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Lucide Icons](https://lucide.dev/)
-- [Recharts](https://recharts.org/)
+Proyek ini dilisensikan di bawah lisensi [MIT License](LICENSE). Bebas digunakan dan dikembangkan untuk keperluan pribadi maupun komersial.
