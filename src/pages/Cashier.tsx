@@ -1,80 +1,82 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Product, type Category, type Transaction, type TransactionItemRecord } from '@/lib/db';
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, Plus, Minus, ShoppingCart, X, Percent, Tag, CreditCard, Banknote, Check, ScanBarcode, Package as PackageIcon, ClipboardList, Save, Pencil, User, Hash, Trash2, Barcode } from 'lucide-react';
-import Receipt from '@/components/Receipt';
-import BarcodeScanner from '@/components/BarcodeScanner';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { cn } from '@/lib/utils';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { ShoppingCart, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { id as localeId } from 'date-fns/locale';
-import { cancelOpenBill as cancelOpenBillTx, checkoutSale, saveOpenBill as saveOpenBillTx } from '@/lib/services/salesService';
+
+import { db, type Product, type Transaction, type TransactionItemRecord } from '@/lib/db';
+import { checkoutSale, saveOpenBill as saveOpenBillTx, cancelOpenBill as cancelOpenBillTx } from '@/lib/services/salesService';
 import { formatThousandsInput, sanitizeNumericInput } from '@/lib/number-input';
 
-interface CartItem {
-  product: Product;
-  qty: number;
-  unitPrice: number;
-  unitHpp: number;
-  discountType: 'percentage' | 'nominal' | null;
-  discountValue: number;
-  notes?: string;
-}
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { MoneyText } from '@/components/ui/money-text';
+import Receipt from '@/components/Receipt';
+import BarcodeScanner from '@/components/BarcodeScanner';
 
-export default function Kasir() {
+import { ProductCatalog } from './cashier/ProductCatalog';
+import { CartPanel, type CartItem } from './cashier/CartPanel';
+import { CheckoutModal } from './cashier/CheckoutModal';
+import { OpenBillsSheet } from './cashier/OpenBillsSheet';
+import { cn } from '@/lib/utils';
+
+export default function Cashier() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [editingTxId, setEditingTxId] = useState<number | null>(null);
+
+  // Dialog & Sheet States
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
+  const [openBillsOpen, setOpenBillsOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelTargetTx, setCancelTargetTx] = useState<Transaction | null>(null);
+
+  // Form / Transaction Inputs
   const [txDiscountType, setTxDiscountType] = useState<'percentage' | 'nominal' | null>(null);
   const [txDiscountValue, setTxDiscountValue] = useState('');
-  const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
   const [tempDiscountType, setTempDiscountType] = useState<'percentage' | 'nominal'>('nominal');
   const [tempDiscountValue, setTempDiscountValue] = useState('');
   const [paymentMethodId, setPaymentMethodId] = useState<string>('');
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [isQuickAdding, setIsQuickAdding] = useState(false);
-  const [receiptOpen, setReceiptOpen] = useState(false);
-  const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
-  const [lastTxItems, setLastTxItems] = useState<TransactionItemRecord[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [tableNumber, setTableNumber] = useState('');
   const [remarks, setRemarks] = useState('');
-  const [scannerOpen, setScannerOpen] = useState(false);
-  const [openBillsOpen, setOpenBillsOpen] = useState(false);
-  const [editingItemNotes, setEditingItemNotes] = useState<number | null>(null);
-  const [tempItemNotes, setTempItemNotes] = useState('');
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [cancelTargetTx, setCancelTargetTx] = useState<Transaction | null>(null);
-  const [scanInput, setScanInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const scanInputRef = useRef<HTMLInputElement>(null);
 
+  // Completed transaction cache for Receipt modal
+  const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
+  const [lastTxItems, setLastTxItems] = useState<TransactionItemRecord[]>([]);
+
+  // DB queries
   const products = useLiveQuery(() => db.products.where('isDeleted').equals(0).toArray());
   const categories = useLiveQuery(() => db.categories.where('isDeleted').equals(0).toArray());
   const paymentMethods = useLiveQuery(() => db.paymentMethods.toArray());
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
   const openBills = useLiveQuery(() => db.transactions.where('status').equals('open').reverse().sortBy('date'));
 
-  const cartProductIds = useMemo(() => new Set(cart.map(c => c.product.id)), [cart]);
+  const cartProductCounts = useMemo(() => {
+    const map = new Map<number, number>();
+    cart.forEach(item => map.set(item.product.id!, item.qty));
+    return map;
+  }, [cart]);
 
-  const filtered = useMemo(() => products?.filter(p => {
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const matchCategory = filterCategory === 'all' || p.categoryId === Number(filterCategory);
-    return matchSearch && matchCategory && (p.stock > 0 || cartProductIds.has(p.id!));
-  }) ?? [], [products, search, filterCategory, cartProductIds]);
+  const filteredProducts = useMemo(() => {
+    return products?.filter(p => {
+      const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.barcode && p.barcode.toLowerCase().includes(search.toLowerCase()));
+      const matchCategory = filterCategory === 'all' || p.categoryId === Number(filterCategory);
+      return matchSearch && matchCategory && (p.stock > 0 || cartProductCounts.has(p.id!));
+    }) ?? [];
+  }, [products, search, filterCategory, cartProductCounts]);
 
   const doFullReset = () => {
     setCart([]);
@@ -86,18 +88,16 @@ export default function Kasir() {
     setCustomerName('');
     setTableNumber('');
     setRemarks('');
-    setIsQuickAdding(false);
     setIsSubmitting(false);
   };
 
-  // === Cart Operations ===
-
+  // Cart operations
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(c => c.product.id === product.id);
       if (existing) {
         if (existing.qty >= product.stock) {
-          toast.error('Stok tidak cukup');
+          toast.error('Stok tidak mencukupi');
           return prev;
         }
         return prev.map(c => c.product.id === product.id ? { ...c, qty: c.qty + 1 } : c);
@@ -106,12 +106,30 @@ export default function Kasir() {
     });
   };
 
+  const handleBarcodeScan = (code: string) => {
+    const cleanCode = code.trim().toLowerCase();
+    const product = products?.find(p => p.barcode?.toLowerCase() === cleanCode);
+    if (!product) {
+      toast.error(`Produk dengan barcode "${code}" tidak ditemukan`);
+      return;
+    }
+    if (product.stock <= 0) {
+      toast.error(`Stok produk "${product.name}" habis`);
+      return;
+    }
+    addToCart(product);
+    toast.success(`Ditambahkan: ${product.name}`);
+  };
+
   const updateQty = (productId: number, delta: number) => {
     setCart(prev => prev.map(c => {
       if (c.product.id !== productId) return c;
       const newQty = c.qty + delta;
       if (newQty <= 0) return c;
-      if (newQty > c.product.stock) { toast.error('Stok tidak cukup'); return c; }
+      if (newQty > c.product.stock) {
+        toast.error('Stok tidak mencukupi');
+        return c;
+      }
       return { ...c, qty: newQty };
     }));
   };
@@ -157,24 +175,28 @@ export default function Kasir() {
     notes: c.notes,
   }));
 
-  const { subtotal, txDiscountAmount, total, paidAmount, change, totalHpp, totalProfit } = useMemo(() => {
+  const { subtotal, txDiscountAmount, total, paidAmount, totalHpp, totalProfit } = useMemo(() => {
     const sub = cart.reduce((sum, item) => sum + getItemSubtotal(item), 0);
-    const txDiscountRaw = txDiscountType === 'percentage' ? sub * (Number(txDiscountValue) || 0) / 100 : txDiscountType === 'nominal' ? Number(txDiscountValue) || 0 : 0;
+    const txDiscountRaw = txDiscountType === 'percentage'
+      ? sub * (Number(txDiscountValue) || 0) / 100
+      : txDiscountType === 'nominal'
+      ? Number(txDiscountValue) || 0
+      : 0;
     const txDisc = Math.min(sub, Math.max(0, txDiscountRaw));
     const tot = Math.max(0, sub - txDisc);
     const paid = Number(paymentAmount) || 0;
-    const chg = paid - tot;
     const hpp = cart.reduce((sum, item) => sum + (item.unitHpp * item.qty), 0);
     const profit = tot - hpp;
-    return { subtotal: sub, txDiscountAmount: txDisc, total: tot, paidAmount: paid, change: chg, totalHpp: hpp, totalProfit: profit };
+    return { subtotal: sub, txDiscountAmount: txDisc, total: tot, paidAmount: paid, totalHpp: hpp, totalProfit: profit };
   }, [cart, txDiscountType, txDiscountValue, paymentAmount]);
 
-  // === Open Bill Operations ===
-
+  // Open bills handlers
   const saveOpenBill = async () => {
-    if (cart.length === 0 || isSubmitting) { toast.error('Keranjang kosong'); return; }
+    if (cart.length === 0 || isSubmitting) {
+      toast.error('Keranjang belanja kosong');
+      return;
+    }
     setIsSubmitting(true);
-
     try {
       const result = await saveOpenBillTx({
         editingTxId,
@@ -188,17 +210,14 @@ export default function Kasir() {
         tableNumber: tableNumber.trim() || undefined,
         remarks: remarks.trim() || undefined,
       });
-
       toast.success(editingTxId ? `Bill ${result.transaction.receiptNumber} diperbarui!` : `Bill ${result.transaction.receiptNumber} disimpan!`);
+      doFullReset();
+      setCartOpen(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Gagal menyimpan bill');
-      return;
     } finally {
       setIsSubmitting(false);
     }
-
-    doFullReset();
-    setCartOpen(false);
   };
 
   const loadOpenBill = async (tx: Transaction) => {
@@ -230,7 +249,7 @@ export default function Kasir() {
     }
 
     if (missingItems.length > 0) {
-      toast.warning(`Sebagian item tidak dimuat karena produk sudah dihapus: ${missingItems.slice(0, 2).join(', ')}${missingItems.length > 2 ? '...' : ''}`);
+      toast.warning(`Sebagian item tidak dimuat karena produk telah dihapus: ${missingItems.join(', ')}`);
     }
 
     setCart(cartItems);
@@ -249,29 +268,50 @@ export default function Kasir() {
     try {
       await cancelOpenBillTx(tx.id);
       toast.success(`Bill ${tx.receiptNumber} dibatalkan`);
+      setCancelDialogOpen(false);
+      setCancelTargetTx(null);
+      if (editingTxId === tx.id) {
+        doFullReset();
+        setCartOpen(false);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Gagal membatalkan bill');
-      return;
     }
-    setCancelDialogOpen(false);
-    setCancelTargetTx(null);
-    if (editingTxId === tx.id) {
-      doFullReset();
+  };
+
+  const handleCheckout = async () => {
+    if (!paymentMethodId || paidAmount < total || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const result = await checkoutSale({
+        editingTxId,
+        items: buildSaleCartItems(),
+        subtotal,
+        discountType: txDiscountType,
+        discountValue: Number(txDiscountValue) || 0,
+        discountAmount: txDiscountAmount,
+        total,
+        paymentMethodId: Number(paymentMethodId),
+        paymentAmount: paidAmount,
+        change: paidAmount >= total ? paidAmount - total : 0,
+        profit: totalProfit,
+        customerName: customerName.trim() || undefined,
+        tableNumber: tableNumber.trim() || undefined,
+        remarks: remarks.trim() || undefined,
+      });
+
+      setLastTransaction(result.transaction);
+      setLastTxItems(result.items);
+      setCheckoutOpen(false);
       setCartOpen(false);
+      setReceiptOpen(true);
+      doFullReset();
+      toast.success('Transaksi penjualan berhasil diselesaikan!');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Transaksi gagal diproses');
+    } finally {
+      setIsSubmitting(false);
     }
-  };
-
-  const handleCancelFromCart = () => {
-    const tx = openBills?.find(b => b.id === editingTxId);
-    if (tx) {
-      setCancelTargetTx(tx);
-      setCancelDialogOpen(true);
-    }
-  };
-
-  const handleCancelFromList = (bill: Transaction) => {
-    setCancelTargetTx(bill);
-    setCancelDialogOpen(true);
   };
 
   useEffect(() => {
@@ -289,7 +329,7 @@ export default function Kasir() {
 
     const targetBill = openBills.find(b => b.id === txId);
     if (!targetBill) {
-      toast.error('Open bill tidak ditemukan.');
+      toast.error('Open bill tidak ditemukan');
       setSearchParams({}, { replace: true });
       return;
     }
@@ -298,818 +338,285 @@ export default function Kasir() {
     setSearchParams({}, { replace: true });
   }, [searchParams, setSearchParams, openBills]);
 
-  useEffect(() => {
-    const handleAppBack = (event: Event) => {
-      if (scannerOpen) {
-        setScannerOpen(false);
-        event.preventDefault();
-        return;
-      }
-      if (receiptOpen) {
-        setReceiptOpen(false);
-        event.preventDefault();
-        return;
-      }
-      if (cancelDialogOpen) {
-        setCancelDialogOpen(false);
-        setCancelTargetTx(null);
-        event.preventDefault();
-        return;
-      }
-      if (discountDialogOpen) {
-        setDiscountDialogOpen(false);
-        event.preventDefault();
-        return;
-      }
-      if (checkoutOpen) {
-        setCheckoutOpen(false);
-        event.preventDefault();
-        return;
-      }
-      if (openBillsOpen) {
-        setOpenBillsOpen(false);
-        event.preventDefault();
-        return;
-      }
-      if (cartOpen) {
-        setCartOpen(false);
-        setEditingItemNotes(null);
-        event.preventDefault();
-      }
-    };
-
-    window.addEventListener('app:backbutton', handleAppBack);
-    return () => window.removeEventListener('app:backbutton', handleAppBack);
-  }, [scannerOpen, receiptOpen, cancelDialogOpen, discountDialogOpen, checkoutOpen, openBillsOpen, cartOpen]);
-
-  // === Checkout ===
-
-  const handleCheckout = async () => {
-    if (!paymentMethodId || paidAmount < total || isSubmitting) return;
-    setIsSubmitting(true);
-
-    try {
-      const result = await checkoutSale({
-        editingTxId,
-        items: buildSaleCartItems(),
-        subtotal,
-        discountType: txDiscountType,
-        discountValue: Number(txDiscountValue) || 0,
-        discountAmount: txDiscountAmount,
-        total,
-        paymentMethodId: Number(paymentMethodId),
-        paymentAmount: paidAmount,
-        change,
-        profit: totalProfit,
-        customerName: customerName.trim() || undefined,
-        tableNumber: tableNumber.trim() || undefined,
-        remarks: remarks.trim() || undefined,
-      });
-
-      toast.success(`Transaksi berhasil! ${result.transaction.receiptNumber}`);
-      setLastTransaction(result.transaction);
-      setLastTxItems(result.items);
-      setReceiptOpen(true);
-      doFullReset();
-      setCheckoutOpen(false);
-      setCartOpen(false);
-      return;
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Gagal memproses transaksi');
-      return;
-    } finally {
-      setIsSubmitting(false);
-    }
-
-  };
-
-  const cartCount = cart.reduce((s, c) => s + c.qty, 0);
-  const openBillsCount = openBills?.length ?? 0;
-
-  const handleScan = (barcode: string) => {
-    setScannerOpen(false);
-    const product = products?.find(p => p.sku === barcode || p.barcode === barcode);
-    if (product) {
-      if (product.stock <= 0) {
-        toast.error(`Stok ${product.name} habis`);
-        return;
-      }
-      addToCart(product);
-      toast.success(`Ditambahkan: ${product.name}`);
-    } else {
-      toast.error(`Produk dengan SKU/Barcode "${barcode}" tidak ditemukan`);
-    }
-  };
-
-  const handleScanKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && scanInput.trim()) {
-      const code = scanInput.trim();
-      setScanInput('');
-      const product = products?.find(p => p.sku === code || p.barcode === code);
-      if (product) {
-        if (product.stock <= 0) {
-          toast.error(`Stok ${product.name} habis`);
-          return;
-        }
-        addToCart(product);
-        toast.success(`Ditambahkan: ${product.name}`);
-      } else {
-        toast.error(`Produk dengan SKU/Barcode "${code}" tidak ditemukan`);
-      }
-    }
-  };
-
-  // Avoid forcing keyboard open on older Android devices.
-  // User can tap the field manually when needed.
-
-  const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`;
+  const totalCartQty = cart.reduce((sum, item) => sum + item.qty, 0);
+  const openBillsCount = openBills?.length || 0;
 
   return (
-    <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4rem)]">
-      <div className="flex flex-col md:flex-row gap-0 md:gap-4 h-full">
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-          {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold flex items-center gap-2">
-          <ShoppingCart className="w-5 h-5 text-primary" />
-          Kasir
-          {editingTxId && (
-            <Badge variant="secondary" className="text-[10px] font-normal">
-              Editing Bill
-            </Badge>
-          )}
-        </h1>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-9 gap-1.5 text-xs"
-          onClick={() => setOpenBillsOpen(true)}
-        >
-          <ClipboardList className="w-4 h-4" />
-          Open Bill
-          {openBillsCount > 0 && (
-            <Badge className="h-4 min-w-4 rounded-full text-[9px] px-1 bg-destructive text-destructive-foreground">
-              {openBillsCount}
-            </Badge>
-          )}
-        </Button>
-      </div>
+    <div className="flex flex-col lg:flex-row h-full min-h-[calc(100vh-80px)] gap-4 p-3 md:p-4 max-w-[1600px] mx-auto">
+      {/* Product Catalog Lane */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-extrabold text-foreground tracking-tight">Kasir POS</h1>
+            {editingTxId && (
+              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                Mode Edit Bill
+              </Badge>
+            )}
+          </div>
 
-      {/* Search */}
-      <div className="flex gap-2 mb-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Cari produk..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-10" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setOpenBillsOpen(true)}
+            className="relative h-9 text-xs rounded-xl border-border/70 shadow-sm"
+          >
+            <ClipboardList className="w-4 h-4 mr-1.5 text-primary" />
+            Open Bills
+            {openBillsCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 bg-primary text-primary-foreground rounded-full text-[10px] font-bold">
+                {openBillsCount}
+              </span>
+            )}
+          </Button>
         </div>
-        <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => setScannerOpen(true)} aria-label="Scan barcode">
-          <ScanBarcode className="w-5 h-5" />
-        </Button>
+
+        <ProductCatalog
+          products={filteredProducts}
+          categories={categories || []}
+          search={search}
+          onSearchChange={setSearch}
+          filterCategory={filterCategory}
+          onFilterCategoryChange={setFilterCategory}
+          onAddToCart={addToCart}
+          cartProductCounts={cartProductCounts}
+          onOpenScanner={() => setScannerOpen(true)}
+          onBarcodeSubmit={handleBarcodeScan}
+        />
       </div>
 
-      {/* SKU / Barcode scan input */}
-      <div className="flex gap-2 mb-3">
-        <div className="relative flex-1">
-          <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            ref={scanInputRef}
-            placeholder="Scan / ketik SKU atau Barcode lalu Enter..."
-            value={scanInput}
-            onChange={e => setScanInput(e.target.value)}
-            onKeyDown={handleScanKeyDown}
-            className="pl-9 h-10 text-sm"
+      {/* Desktop Persistent Split-View Cart Sidebar */}
+      <div className="hidden lg:flex w-[380px] xl:w-[420px] shrink-0 border border-border/70 rounded-2xl overflow-hidden shadow-sm flex-col bg-card h-[calc(100vh-100px)] sticky top-4">
+        <div className="p-4 border-b border-border bg-muted/20 flex items-center justify-between">
+          <span className="font-bold text-sm flex items-center gap-2">
+            <ShoppingCart className="w-4 h-4 text-primary" />
+            Keranjang Belanja
+          </span>
+          {totalCartQty > 0 && (
+            <Badge variant="secondary" className="font-semibold text-xs">
+              {totalCartQty} Item
+            </Badge>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-hidden">
+          <CartPanel
+            cart={cart}
+            editingTxId={editingTxId}
+            subtotal={subtotal}
+            txDiscountAmount={txDiscountAmount}
+            txDiscountType={txDiscountType}
+            txDiscountValue={txDiscountValue}
+            total={total}
+            totalProfit={totalProfit}
+            onUpdateQty={updateQty}
+            onRemoveItem={removeFromCart}
+            onUpdateItemNotes={updateItemNotes}
+            onOpenDiscountDialog={() => {
+              setTempDiscountType(txDiscountType || 'nominal');
+              setTempDiscountValue(txDiscountValue);
+              setDiscountDialogOpen(true);
+            }}
+            onSaveOpenBill={saveOpenBill}
+            onOpenCheckout={() => {
+              setPaymentAmount(total.toString());
+              setCheckoutOpen(true);
+            }}
+            onCancelOpenBill={() => {
+              const tx = openBills?.find(b => b.id === editingTxId);
+              if (tx) {
+                setCancelTargetTx(tx);
+                setCancelDialogOpen(true);
+              }
+            }}
+            isSubmitting={isSubmitting}
           />
         </div>
       </div>
 
-      {/* Category chips */}
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide mb-3 pb-1 pr-4" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
-        <button type="button" onClick={() => setFilterCategory('all')} className={cn('shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors', filterCategory === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
-          Semua
-        </button>
-        {categories?.map(c => (
-          <button type="button" key={c.id} onClick={() => setFilterCategory(c.id!.toString())} className={cn('shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors', filterCategory === c.id!.toString() ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
-            {c.icon} {c.name}
-          </button>
-        ))}
-      </div>
-
-      {/* Product Grid */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
-        {filtered.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-sm text-muted-foreground">
-              {products && products.length > 0
-                ? 'Semua produk stoknya habis. Tambah stok dulu di menu Stok Masuk.'
-                : 'Belum ada produk. Tambah produk dulu di menu Produk.'}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-            {filtered.map(p => (
-              <Card key={p.id} className="border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow active:scale-[0.98]" onClick={() => addToCart(p)}>
-                <CardContent className="p-0">
-                  <div className="w-full aspect-square bg-muted rounded-t-lg overflow-hidden flex items-center justify-center">
-                    {p.photo ? (
-                      <img src={p.photo} alt={p.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <PackageIcon className="w-8 h-8 text-muted-foreground/30" />
-                    )}
-                  </div>
-                  <div className="p-2.5">
-                    <h3 className="text-xs font-semibold truncate">{p.name}</h3>
-                    <p className="text-sm font-bold text-primary mt-0.5">Rp {p.price.toLocaleString('id-ID')}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Stok: {p.stock} {p.unit}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+      {/* Mobile Floating Cart Summary Bar */}
+      {cart.length > 0 && (
+        <div className="lg:hidden fixed bottom-16 left-0 right-0 p-3 bg-background/95 backdrop-blur border-t border-border z-30 shadow-xl">
+          <Button
+            onClick={() => setCartOpen(true)}
+            className="w-full h-12 rounded-xl text-sm font-bold flex items-center justify-between px-4 shadow-lg shadow-primary/20"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-primary-foreground text-primary flex items-center justify-center text-xs font-bold">
+                {totalCartQty}
+              </span>
+              <span>Lihat Keranjang</span>
+            </div>
+            <MoneyText value={total} className="text-base font-extrabold text-primary-foreground" />
+          </Button>
         </div>
-      </div>
-
-      {/* Desktop Cart Panel */}
-      <div className="hidden md:flex md:w-80 lg:w-96 flex-col overflow-hidden bg-card rounded-xl border border-border shrink-0">
-        <div className="p-4 border-b border-border shrink-0">
-          <h3 className="text-base font-bold flex items-center gap-2">
-            <ShoppingCart className="w-4 h-4 text-primary" />
-            Keranjang ({cartCount} item)
-            {editingTxId && <span className="text-xs font-normal text-muted-foreground">— edit</span>}
-          </h3>
-        </div>
-        {cart.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <p className="text-sm text-muted-foreground">Keranjang kosong</p>
-          </div>
-        ) : (
-          <div className="flex flex-col flex-1 overflow-hidden">
-            <div className="flex-1 overflow-y-auto space-y-3 p-4">
-              {cart.map(item => (
-                <div key={item.product.id} className="bg-muted/50 p-3 rounded-xl space-y-1.5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{item.product.name}</p>
-                      <p className="text-xs text-muted-foreground">Rp {item.unitPrice.toLocaleString('id-ID')} × {item.qty}</p>
-                      <p className="text-sm font-bold text-primary">{rp(getItemSubtotal(item))}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => item.qty === 1 ? removeFromCart(item.product.id!) : updateQty(item.product.id!, -1)}>
-                        {item.qty === 1 ? <X className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
-                      </Button>
-                      <span className="w-8 text-center text-sm font-bold">{item.qty}</span>
-                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => updateQty(item.product.id!, 1)}>
-                        <Plus className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {item.notes ? (
-                      <button
-                        className="flex items-center gap-1 text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded-full"
-                        onClick={() => { setEditingItemNotes(item.product.id!); setTempItemNotes(item.notes || ''); }}
-                      >
-                        <Pencil className="w-2.5 h-2.5" />
-                        {item.notes}
-                      </button>
-                    ) : (
-                      <button
-                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
-                        onClick={() => { setEditingItemNotes(item.product.id!); setTempItemNotes(''); }}
-                      >
-                        <Pencil className="w-2.5 h-2.5" />
-                        Tambah catatan
-                      </button>
-                    )}
-                  </div>
-                  {editingItemNotes === item.product.id && (
-                    <div className="flex gap-2 items-center">
-                      <Input
-                        autoFocus
-                        value={tempItemNotes}
-                        onChange={e => setTempItemNotes(e.target.value)}
-                        placeholder="Contoh: less sugar..."
-                        className="h-8 text-xs"
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') { updateItemNotes(item.product.id!, tempItemNotes); setEditingItemNotes(null); }
-                          if (e.key === 'Escape') setEditingItemNotes(null);
-                        }}
-                      />
-                      <Button size="sm" className="h-8 text-xs" onClick={() => { updateItemNotes(item.product.id!, tempItemNotes); setEditingItemNotes(null); }}>OK</Button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-2 px-4 mb-2">
-              <div className="relative flex-1">
-                <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Nama pelanggan"
-                  value={customerName}
-                  onChange={e => setCustomerName(e.target.value)}
-                  className="pl-8 h-9 text-xs"
-                />
-              </div>
-              <div className="relative flex-[0.6]">
-                <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Meja"
-                  value={tableNumber}
-                  onChange={e => setTableNumber(e.target.value)}
-                  className="pl-8 h-9 text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="border-t pt-4 space-y-3 px-4 pb-4">
-              {txDiscountAmount > 0 ? (
-                <button
-                  onClick={() => { setTempDiscountType(txDiscountType!); setTempDiscountValue(txDiscountValue); setDiscountDialogOpen(true); }}
-                  className="flex items-center gap-1.5 text-xs text-destructive font-medium"
-                >
-                  <Tag className="w-3.5 h-3.5" />
-                  Diskon: {txDiscountType === 'percentage' ? `${txDiscountValue}%` : `Rp ${Number(txDiscountValue).toLocaleString('id-ID')}`}
-                  <span className="text-[10px] underline ml-1">Ubah</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => { setTempDiscountType('nominal'); setTempDiscountValue(''); setDiscountDialogOpen(true); }}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
-                >
-                  <Tag className="w-3.5 h-3.5" />
-                  <span>Tambah Diskon</span>
-                </button>
-              )}
-
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-medium">{rp(subtotal)}</span>
-              </div>
-              {txDiscountAmount > 0 && (
-                <div className="flex justify-between text-sm text-destructive">
-                  <span>Diskon</span>
-                  <span>-{rp(txDiscountAmount)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total</span>
-                <span className="text-primary">{rp(total)}</span>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1 h-12 text-sm font-semibold"
-                  onClick={saveOpenBill}
-                  disabled={cart.length === 0 || isSubmitting}
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Simpan Bill
-                </Button>
-                <Button
-                  className="flex-1 h-12 text-sm font-semibold"
-                  onClick={() => { setCheckoutOpen(true); setPaymentMethodId(paymentMethods?.[0]?.id?.toString() ?? ''); setPaymentAmount(total.toString()); setIsQuickAdding(false); }}
-                >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Bayar
-                </Button>
-              </div>
-
-              {editingTxId && (
-                <Button
-                  variant="outline"
-                  className="w-full h-10 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
-                  onClick={handleCancelFromCart}
-                >
-                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                  Batalkan Bill Ini
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-      </div>{/* end flex row */}
-
-      {/* Cart FAB (mobile only) */}
-      {cartCount > 0 && (
-        <button
-          onClick={() => setCartOpen(true)}
-          className="md:hidden fixed bottom-24 right-4 flex items-center gap-2 bg-primary text-primary-foreground px-5 py-3 rounded-full shadow-xl active:scale-95 transition-transform z-40"
-        >
-          <ShoppingCart className="w-5 h-5" />
-          <span className="font-bold text-sm">{cartCount} item</span>
-          <span className="text-sm font-bold">• Rp {total.toLocaleString('id-ID')}</span>
-        </button>
       )}
 
-      {/* Cart Sheet (mobile only) */}
-      <div className="md:hidden">
-      <Sheet open={cartOpen} onOpenChange={(open) => { setCartOpen(open); if (!open) setEditingItemNotes(null); }}>
-        <SheetContent side="bottom" className="h-[88vh] max-h-[calc(var(--app-height,100vh)-2rem)] rounded-t-2xl max-w-lg mx-auto p-4 pb-0 flex flex-col overflow-hidden">
-          <SheetHeader className="shrink-0 pr-8">
-            <SheetTitle className="text-left">
-              Keranjang ({cartCount} item)
-              {editingTxId && <span className="text-xs font-normal text-muted-foreground ml-2">— edit open bill</span>}
+      {/* Mobile Cart Sheet */}
+      <Sheet open={cartOpen} onOpenChange={setCartOpen}>
+        <SheetContent side="bottom" className="h-[90vh] rounded-t-2xl max-w-lg mx-auto p-0 flex flex-col">
+          <SheetHeader className="p-4 pb-2 border-b border-border">
+            <SheetTitle className="text-left flex items-center justify-between text-base">
+              <span className="flex items-center gap-2 font-bold">
+                <ShoppingCart className="w-5 h-5 text-primary" />
+                Keranjang Belanja
+              </span>
+              <Badge variant="secondary" className="font-semibold text-xs">
+                {totalCartQty} Item
+              </Badge>
             </SheetTitle>
           </SheetHeader>
-          <div className="flex min-h-0 flex-1 flex-col mt-4">
-            <div className="min-h-0 flex-1 overflow-y-auto space-y-3 pb-4">
-              {cart.map(item => (
-                <div key={item.product.id} className="bg-muted/50 p-3 rounded-xl space-y-1.5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{item.product.name}</p>
-                      <p className="text-xs text-muted-foreground">Rp {item.unitPrice.toLocaleString('id-ID')} × {item.qty}</p>
-                      <p className="text-sm font-bold text-primary">{rp(getItemSubtotal(item))}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => item.qty === 1 ? removeFromCart(item.product.id!) : updateQty(item.product.id!, -1)}>
-                        {item.qty === 1 ? <X className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
-                      </Button>
-                      <span className="w-8 text-center text-sm font-bold">{item.qty}</span>
-                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => updateQty(item.product.id!, 1)}>
-                        <Plus className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  {/* Item notes row */}
-                  <div className="flex items-center gap-2">
-                    {item.notes ? (
-                      <button
-                        className="flex items-center gap-1 text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded-full"
-                        onClick={() => { setEditingItemNotes(item.product.id!); setTempItemNotes(item.notes || ''); }}
-                      >
-                        <Pencil className="w-2.5 h-2.5" />
-                        {item.notes}
-                      </button>
-                    ) : (
-                      <button
-                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
-                        onClick={() => { setEditingItemNotes(item.product.id!); setTempItemNotes(''); }}
-                      >
-                        <Pencil className="w-2.5 h-2.5" />
-                        Tambah catatan
-                      </button>
-                    )}
-                  </div>
-                  {/* Inline notes editor */}
-                  {editingItemNotes === item.product.id && (
-                    <div className="flex gap-2 items-center">
-                      <Input
-                        autoFocus
-                        value={tempItemNotes}
-                        onChange={e => setTempItemNotes(e.target.value)}
-                        placeholder="Contoh: less sugar..."
-                        className="h-8 text-xs"
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') { updateItemNotes(item.product.id!, tempItemNotes); setEditingItemNotes(null); }
-                          if (e.key === 'Escape') setEditingItemNotes(null);
-                        }}
-                      />
-                      <Button size="sm" className="h-8 text-xs" onClick={() => { updateItemNotes(item.product.id!, tempItemNotes); setEditingItemNotes(null); }}>OK</Button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
 
-            {/* Customer / Table quick inputs */}
-            <div className="flex gap-2 mb-2 shrink-0">
-              <div className="relative flex-1">
-                <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Nama pelanggan"
-                  value={customerName}
-                  onChange={e => setCustomerName(e.target.value)}
-                  className="pl-8 h-9 text-xs"
-                />
-              </div>
-              <div className="relative flex-[0.6]">
-                <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Meja"
-                  value={tableNumber}
-                  onChange={e => setTableNumber(e.target.value)}
-                  className="pl-8 h-9 text-xs"
-                />
-              </div>
-            </div>
-
-            {/* Summary */}
-            <div className="border-t bg-background pt-4 space-y-3 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shrink-0">
-              {txDiscountAmount > 0 ? (
-                <button
-                  onClick={() => { setTempDiscountType(txDiscountType!); setTempDiscountValue(txDiscountValue); setDiscountDialogOpen(true); }}
-                  className="flex items-center gap-1.5 text-xs text-destructive font-medium"
-                >
-                  <Tag className="w-3.5 h-3.5" />
-                  Diskon: {txDiscountType === 'percentage' ? `${txDiscountValue}%` : `Rp ${Number(txDiscountValue).toLocaleString('id-ID')}`}
-                  <span className="text-[10px] underline ml-1">Ubah</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => { setTempDiscountType('nominal'); setTempDiscountValue(''); setDiscountDialogOpen(true); }}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
-                >
-                  <Tag className="w-3.5 h-3.5" />
-                  <span>Tambah Diskon</span>
-                </button>
-              )}
-
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-medium">{rp(subtotal)}</span>
-              </div>
-              {txDiscountAmount > 0 && (
-                <div className="flex justify-between text-sm text-destructive">
-                  <span>Diskon</span>
-                  <span>-{rp(txDiscountAmount)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total</span>
-                <span className="text-primary">{rp(total)}</span>
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1 h-12 text-sm font-semibold"
-                  onClick={saveOpenBill}
-                  disabled={cart.length === 0 || isSubmitting}
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Simpan Bill
-                </Button>
-                <Button
-                  className="flex-1 h-12 text-sm font-semibold"
-                  onClick={() => { setCheckoutOpen(true); setPaymentMethodId(paymentMethods?.[0]?.id?.toString() ?? ''); setPaymentAmount(total.toString()); setIsQuickAdding(false); }}
-                >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Bayar
-                </Button>
-              </div>
-
-              {editingTxId && (
-                <Button
-                  variant="outline"
-                  className="w-full h-10 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
-                  onClick={handleCancelFromCart}
-                >
-                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                  Batalkan Bill Ini
-                </Button>
-              )}
-            </div>
+          <div className="flex-1 overflow-hidden">
+            <CartPanel
+              cart={cart}
+              editingTxId={editingTxId}
+              subtotal={subtotal}
+              txDiscountAmount={txDiscountAmount}
+              txDiscountType={txDiscountType}
+              txDiscountValue={txDiscountValue}
+              total={total}
+              totalProfit={totalProfit}
+              onUpdateQty={updateQty}
+              onRemoveItem={removeFromCart}
+              onUpdateItemNotes={updateItemNotes}
+              onOpenDiscountDialog={() => {
+                setTempDiscountType(txDiscountType || 'nominal');
+                setTempDiscountValue(txDiscountValue);
+                setDiscountDialogOpen(true);
+              }}
+              onSaveOpenBill={saveOpenBill}
+              onOpenCheckout={() => {
+                setPaymentAmount(total.toString());
+                setCheckoutOpen(true);
+              }}
+              onCancelOpenBill={() => {
+                const tx = openBills?.find(b => b.id === editingTxId);
+                if (tx) {
+                  setCancelTargetTx(tx);
+                  setCancelDialogOpen(true);
+                }
+              }}
+              isSubmitting={isSubmitting}
+            />
           </div>
         </SheetContent>
       </Sheet>
-      </div>{/* end mobile cart wrapper */}
+
+      {/* Checkout Modal */}
+      <CheckoutModal
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        total={total}
+        paymentMethods={paymentMethods || []}
+        paymentMethodId={paymentMethodId}
+        onPaymentMethodIdChange={setPaymentMethodId}
+        paymentAmount={paymentAmount}
+        onPaymentAmountChange={setPaymentAmount}
+        customerName={customerName}
+        onCustomerNameChange={setCustomerName}
+        tableNumber={tableNumber}
+        onTableNumberChange={setTableNumber}
+        remarks={remarks}
+        onRemarksChange={setRemarks}
+        onConfirmCheckout={handleCheckout}
+        isSubmitting={isSubmitting}
+      />
 
       {/* Open Bills Sheet */}
-      <Sheet open={openBillsOpen} onOpenChange={setOpenBillsOpen}>
-        <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl max-w-lg md:max-w-xl mx-auto">
-          <SheetHeader>
-            <SheetTitle className="text-left flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-primary" />
-              Open Bills ({openBillsCount})
-            </SheetTitle>
-          </SheetHeader>
-          <div className="mt-4 overflow-y-auto pb-6 space-y-2">
-            {!openBills || openBills.length === 0 ? (
-              <div className="text-center py-12">
-                <ClipboardList className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">Tidak ada open bill</p>
-              </div>
-            ) : (
-              openBills.map(bill => (
-                <Card key={bill.id} className="border-0 shadow-sm">
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-[10px]">{bill.receiptNumber}</Badge>
-                        <span className="text-[10px] text-muted-foreground">
-                          {bill.openedAt ? format(new Date(bill.openedAt), 'dd/MM HH:mm', { locale: localeId }) : ''}
-                        </span>
-                      </div>
-                      <span className="text-sm font-bold text-primary">{rp(bill.total)}</span>
-                    </div>
-                    <div className="flex gap-1.5 text-[10px] text-muted-foreground mb-2">
-                      {bill.customerName && <span>👤 {bill.customerName}</span>}
-                      {bill.tableNumber && <span>🪑 Meja {bill.tableNumber}</span>}
-                      {bill.remarks && <span className="truncate max-w-[120px]">📝 {bill.remarks}</span>}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" className="h-8 text-xs flex-1" onClick={() => loadOpenBill(bill)}>
-                        Lanjutkan
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 text-xs text-destructive border-destructive/30"
-                        onClick={() => handleCancelFromList(bill)}
-                      >
-                        Batal
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+      <OpenBillsSheet
+        open={openBillsOpen}
+        onOpenChange={setOpenBillsOpen}
+        openBills={openBills}
+        onLoadBill={loadOpenBill}
+        onCancelBill={(bill) => {
+          setCancelTargetTx(bill);
+          setCancelDialogOpen(true);
+        }}
+      />
 
-      {/* Checkout Dialog */}
-      <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
-        <DialogContent className="max-w-[95vw] rounded-xl">
-          <DialogHeader>
-            <DialogTitle>Pembayaran</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div className="text-center py-3 bg-primary/5 rounded-xl">
-              <p className="text-sm text-muted-foreground">Total Bayar</p>
-              <p className="text-3xl font-bold text-primary">{rp(total)}</p>
-            </div>
-
-            <div className="space-y-1.5">
-              <p className="text-sm font-medium">Metode Pembayaran</p>
-              <div className="grid grid-cols-3 gap-2">
-                {paymentMethods?.map(pm => (
-                  <button key={pm.id} onClick={() => setPaymentMethodId(pm.id!.toString())} className={cn('p-3 rounded-xl text-xs font-semibold border-2 transition-colors', paymentMethodId === pm.id!.toString() ? 'border-primary bg-primary/5 text-primary' : 'border-muted bg-muted/50 text-muted-foreground')}>
-                    {pm.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <p className="text-sm font-medium">Jumlah Bayar</p>
-              <div className="h-12 flex items-center justify-center rounded-md border border-input bg-background text-lg font-bold text-center px-3">
-                {paidAmount > 0 ? `Rp ${paidAmount.toLocaleString('id-ID')}` : 'Rp 0'}
-              </div>
-              <Input
-                type="text"
-                inputMode="numeric"
-                value={formatThousandsInput(paymentAmount)}
-                onChange={e => {
-                  setPaymentAmount(sanitizeNumericInput(e.target.value));
-                  setIsQuickAdding(false);
-                }}
-                placeholder="Ketik nominal, contoh: 50.000"
-                className="h-10 text-sm text-center font-semibold"
-              />
-              <div className="flex flex-wrap gap-1.5">
-                {[1000, 2000, 5000, 10000, 20000, 50000, 100000].map(nom => (
-                  <button
-                    key={nom}
-                    onClick={() => {
-                      if (!isQuickAdding) {
-                        setPaymentAmount(String(nom));
-                        setIsQuickAdding(true);
-                      } else {
-                        setPaymentAmount(prev => String((Number(prev) || 0) + nom));
-                      }
-                    }}
-                    className="flex-1 min-w-[calc(25%-6px)] h-9 rounded-lg border border-border bg-muted/50 text-xs font-semibold text-foreground hover:bg-primary/10 hover:border-primary hover:text-primary active:scale-95 transition-all"
-                  >
-                    {nom >= 1000 ? `${(nom / 1000)}K` : nom}
-                  </button>
-                ))}
-                <button
-                  onClick={() => { setPaymentAmount(total.toString()); setIsQuickAdding(false); }}
-                  className="flex-1 min-w-[calc(25%-6px)] h-9 rounded-lg border border-primary/30 bg-primary/5 text-xs font-semibold text-primary hover:bg-primary/10 active:scale-95 transition-all"
-                >
-                  Uang Pas
-                </button>
-              </div>
-              <button
-                onClick={() => { setPaymentAmount('0'); setIsQuickAdding(false); }}
-                className="w-full text-xs text-muted-foreground hover:text-destructive transition-colors py-1"
-              >
-                Reset
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                  <Input
-                    placeholder="Nama pelanggan"
-                    value={customerName}
-                    onChange={e => setCustomerName(e.target.value)}
-                    className="pl-8 h-10 text-sm"
-                  />
-                </div>
-                <div className="relative flex-[0.7]">
-                  <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                  <Input
-                    placeholder="Meja"
-                    value={tableNumber}
-                    onChange={e => setTableNumber(e.target.value)}
-                    className="pl-8 h-10 text-sm"
-                  />
-                </div>
-              </div>
-              <Input
-                placeholder="Catatan tambahan (opsional)"
-                value={remarks}
-                onChange={e => setRemarks(e.target.value)}
-                className="h-10"
-              />
-            </div>
-
-            {paidAmount >= total && (
-              <div className="flex justify-between items-center bg-success/10 p-3 rounded-xl">
-                <span className="text-sm font-medium">Kembalian</span>
-                <span className="text-lg font-bold text-success">Rp {change.toLocaleString('id-ID')}</span>
-              </div>
-            )}
-
-            <Button className="w-full h-12 text-base font-semibold" onClick={handleCheckout} disabled={!paymentMethodId || paidAmount < total || isSubmitting}>
-              <Check className="w-5 h-5 mr-2" />
-              {isSubmitting ? 'Memproses...' : 'Konfirmasi Transaksi'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Discount Dialog */}
+      {/* Transaction Discount Dialog */}
       <Dialog open={discountDialogOpen} onOpenChange={setDiscountDialogOpen}>
-        <DialogContent className="max-w-[95vw] rounded-xl">
+        <DialogContent className="max-w-[95vw] sm:max-w-md rounded-2xl p-5">
           <DialogHeader>
-            <DialogTitle>Diskon Transaksi</DialogTitle>
+            <DialogTitle className="text-center font-bold">Diskon Transaksi Kasir</DialogTitle>
           </DialogHeader>
+
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <p className="text-sm font-medium">Jenis Diskon</p>
+              <p className="text-xs font-semibold">Tipe Diskon</p>
               <div className="grid grid-cols-2 gap-2">
                 <button
+                  type="button"
                   onClick={() => setTempDiscountType('nominal')}
-                  className={cn('p-3 rounded-xl text-sm font-semibold border-2 transition-colors', tempDiscountType === 'nominal' ? 'border-primary bg-primary/5 text-primary' : 'border-muted bg-muted/50 text-muted-foreground')}
+                  className={cn(
+                    'p-2.5 rounded-xl text-xs font-bold border-2 transition-colors',
+                    tempDiscountType === 'nominal' ? 'border-primary bg-primary/10 text-primary' : 'border-border/60 bg-muted/40 text-muted-foreground'
+                  )}
                 >
                   Nominal (Rp)
                 </button>
                 <button
+                  type="button"
                   onClick={() => setTempDiscountType('percentage')}
-                  className={cn('p-3 rounded-xl text-sm font-semibold border-2 transition-colors', tempDiscountType === 'percentage' ? 'border-primary bg-primary/5 text-primary' : 'border-muted bg-muted/50 text-muted-foreground')}
+                  className={cn(
+                    'p-2.5 rounded-xl text-xs font-bold border-2 transition-colors',
+                    tempDiscountType === 'percentage' ? 'border-primary bg-primary/10 text-primary' : 'border-border/60 bg-muted/40 text-muted-foreground'
+                  )}
                 >
-                  Persen (%)
+                  Persentase (%)
                 </button>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <p className="text-sm font-medium">{tempDiscountType === 'percentage' ? 'Persentase Diskon' : 'Jumlah Diskon'}</p>
+              <p className="text-xs font-semibold">
+                {tempDiscountType === 'percentage' ? 'Persen Diskon (%)' : 'Nominal Diskon (Rp)'}
+              </p>
               <Input
                 type="text"
                 inputMode="numeric"
                 value={tempDiscountType === 'nominal' ? formatThousandsInput(tempDiscountValue) : tempDiscountValue}
-                onChange={e => {
-                  if (tempDiscountType === 'nominal') {
-                    setTempDiscountValue(sanitizeNumericInput(e.target.value));
-                    return;
-                  }
-                  setTempDiscountValue(sanitizeNumericInput(e.target.value));
-                }}
+                onChange={e => setTempDiscountValue(sanitizeNumericInput(e.target.value))}
                 placeholder={tempDiscountType === 'percentage' ? 'Contoh: 10' : 'Contoh: 5.000'}
-                className="h-12 text-lg font-bold text-center"
+                className="h-11 text-base font-bold text-center rounded-xl"
               />
               {tempDiscountType === 'percentage' && Number(tempDiscountValue) > 0 && (
                 <p className="text-xs text-muted-foreground text-center">
-                  = Rp {Math.min(subtotal, Math.max(0, subtotal * Number(tempDiscountValue) / 100)).toLocaleString('id-ID')} dari Rp {subtotal.toLocaleString('id-ID')}
+                  Setara dengan potongan <MoneyText value={Math.min(subtotal, Math.max(0, subtotal * Number(tempDiscountValue) / 100))} className="font-bold text-primary" />
                 </p>
               )}
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2">
               {txDiscountType && (
-                <Button variant="outline" className="h-11 text-destructive border-destructive/30" onClick={() => {
-                  setTxDiscountType(null);
-                  setTxDiscountValue('');
-                  setDiscountDialogOpen(false);
-                }}>
-                  Hapus
+                <Button
+                  variant="outline"
+                  className="h-11 rounded-xl text-destructive border-destructive/30"
+                  onClick={() => {
+                    setTxDiscountType(null);
+                    setTxDiscountValue('');
+                    setDiscountDialogOpen(false);
+                  }}
+                >
+                  Hapus Diskon
                 </Button>
               )}
-              <Button className="flex-1 h-11 font-semibold" onClick={() => {
-                if (Number(tempDiscountValue) > 0) {
-                  const normalized = Math.max(0, Number(tempDiscountValue));
-                  const capped = tempDiscountType === 'percentage'
-                    ? Math.min(100, normalized)
-                    : Math.min(subtotal, normalized);
-                  setTxDiscountType(tempDiscountType);
-                  setTxDiscountValue(String(capped));
-                } else {
-                  setTxDiscountType(null);
-                  setTxDiscountValue('');
-                }
-                setDiscountDialogOpen(false);
-              }}>
+              <Button
+                className="flex-1 h-11 font-bold rounded-xl"
+                onClick={() => {
+                  if (Number(tempDiscountValue) > 0) {
+                    const normalized = Math.max(0, Number(tempDiscountValue));
+                    const capped = tempDiscountType === 'percentage' ? Math.min(100, normalized) : Math.min(subtotal, normalized);
+                    setTxDiscountType(tempDiscountType);
+                    setTxDiscountValue(String(capped));
+                  } else {
+                    setTxDiscountType(null);
+                    setTxDiscountValue('');
+                  }
+                  setDiscountDialogOpen(false);
+                }}
+              >
                 Simpan Diskon
               </Button>
             </div>
@@ -1117,7 +624,28 @@ export default function Kasir() {
         </DialogContent>
       </Dialog>
 
-      {/* Receipt Dialog */}
+      {/* Confirmation Dialog for Open Bill Cancellation */}
+      <ConfirmDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        variant="destructive"
+        title="Batalkan Open Bill?"
+        description="Tagihan ini akan dihapus permanen dan stok barang akan dikembalikan ke inventaris toko."
+        confirmLabel="Ya, Batalkan Bill"
+        cancelLabel="Kembali"
+        onConfirm={() => {
+          if (cancelTargetTx) void cancelOpenBill(cancelTargetTx);
+        }}
+      />
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={handleBarcodeScan}
+      />
+
+      {/* Post-Checkout Receipt Modal */}
       {lastTransaction && (
         <Receipt
           open={receiptOpen}
@@ -1128,34 +656,6 @@ export default function Kasir() {
           paymentMethodName={paymentMethods?.find(pm => pm.id === lastTransaction.paymentMethodId)?.name || 'Tunai'}
         />
       )}
-
-      {/* Barcode Scanner */}
-      <BarcodeScanner
-        open={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onScan={handleScan}
-      />
-
-      {/* Cancel Open Bill Confirmation */}
-      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <AlertDialogContent className="max-w-[90vw] rounded-xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Batalkan Bill?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Bill ini akan dihapus dan stok produk akan dikembalikan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setCancelTargetTx(null)}>Tidak</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => cancelTargetTx && cancelOpenBill(cancelTargetTx)}
-            >
-              Batalkan Bill
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
