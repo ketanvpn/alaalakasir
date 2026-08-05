@@ -12,6 +12,7 @@ import { PaymentMethodsCard } from './settings/PaymentMethodsCard';
 import { CategoriesCard } from './settings/CategoriesCard';
 import { BackupRestoreCard } from './settings/BackupRestoreCard';
 import { AboutAppCard } from './settings/AboutAppCard';
+import { ReceiptSettingsCard } from './settings/ReceiptSettingsCard';
 
 export default function Settings() {
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
@@ -73,9 +74,9 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* 3. Quick Navigation Links */}
+      {/* 3. Quick Navigation & Receipt Settings */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Link to="/suppliers" className="block">
+        <Link to="/supplier" className="block">
           <Card className="border border-border/70 shadow-sm rounded-2xl hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -92,22 +93,7 @@ export default function Settings() {
           </Card>
         </Link>
 
-        <Link to="/receipt-settings" className="block">
-          <Card className="border border-border/70 shadow-sm rounded-2xl hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                  <Receipt className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-foreground">Pengaturan Struk</p>
-                  <p className="text-[10px] text-muted-foreground">Printer Bluetooth & format struk</p>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </CardContent>
-          </Card>
-        </Link>
+        <ReceiptSettingsCard storeSettings={storeSettings} />
       </div>
 
       {/* 4. Payment Methods Manager */}
