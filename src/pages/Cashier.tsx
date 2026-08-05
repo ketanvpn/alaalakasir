@@ -342,7 +342,7 @@ export default function Cashier() {
   const openBillsCount = openBills?.length || 0;
 
   return (
-    <div className="flex flex-col lg:flex-row h-full min-h-[calc(100vh-80px)] gap-4 p-3 md:p-4 max-w-[1600px] mx-auto">
+    <div className="flex flex-col lg:flex-row h-full min-h-[calc(100vh-80px)] gap-4 p-3 md:p-4 max-w-[1600px] mx-auto pb-32 lg:pb-4">
       {/* Product Catalog Lane */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex items-center justify-between gap-2 mb-3">
@@ -436,19 +436,23 @@ export default function Cashier() {
 
       {/* Mobile Floating Cart Summary Bar */}
       {cart.length > 0 && (
-        <div className="lg:hidden fixed bottom-16 left-0 right-0 p-3 bg-background/95 backdrop-blur border-t border-border z-30 shadow-xl">
-          <Button
-            onClick={() => setCartOpen(true)}
-            className="w-full h-12 rounded-xl text-sm font-bold flex items-center justify-between px-4 shadow-lg shadow-primary/20"
-          >
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-primary-foreground text-primary flex items-center justify-center text-xs font-bold">
-                {totalCartQty}
-              </span>
-              <span>Lihat Keranjang</span>
-            </div>
-            <MoneyText value={total} className="text-base font-extrabold text-primary-foreground" />
-          </Button>
+        <div className="lg:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] left-0 right-0 p-3 bg-background/95 backdrop-blur-md border-t border-border/80 z-40 shadow-2xl animate-in slide-in-from-bottom duration-200">
+          <div className="max-w-lg mx-auto">
+            <Button
+              onClick={() => setCartOpen(true)}
+              className="w-full h-13 rounded-2xl text-sm font-bold flex items-center justify-between px-4 shadow-xl shadow-primary/25 active:scale-[0.99] transition-transform"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="w-7 h-7 rounded-xl bg-primary-foreground text-primary flex items-center justify-center text-xs font-extrabold shadow-sm">
+                  {totalCartQty}
+                </span>
+                <span className="text-sm font-bold">Lihat Keranjang</span>
+              </div>
+              <div className="text-right">
+                <MoneyText value={total} className="text-base font-extrabold text-primary-foreground tracking-tight" />
+              </div>
+            </Button>
+          </div>
         </div>
       )}
 
