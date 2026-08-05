@@ -61,49 +61,52 @@ export function ProductCatalog({
         tabIndex={-1}
       />
 
-      {/* Search & Action Bar */}
-      <div className="flex gap-2 mb-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari nama atau barcode produk..."
-            value={search}
-            onChange={e => onSearchChange(e.target.value)}
-            className="pl-9 h-11 text-sm bg-card rounded-xl border-border/50 shadow-sm"
-          />
-        </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={onOpenScanner}
-          className="h-11 w-11 shrink-0 rounded-xl bg-card border-border/50 shadow-sm hover:bg-primary/5 hover:border-primary"
-          title="Scan Barcode Kamera"
-        >
-          <ScanBarcode className="w-5 h-5 text-primary" />
-        </Button>
-      </div>
-
-      {/* Category Filter Chips */}
-      <div className="flex gap-1.5 overflow-x-auto pb-2 mb-3 scrollbar-none">
-        <Button
-          size="sm"
-          variant={filterCategory === 'all' ? 'default' : 'secondary'}
-          onClick={() => onFilterCategoryChange('all')}
-          className="rounded-full text-xs h-8 px-3.5 shrink-0"
-        >
-          Semua ({products.length})
-        </Button>
-        {categories.map(cat => (
+      {/* Sticky Search & Filter Header */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pt-0.5 pb-2 -mx-1 px-1 mb-2">
+        {/* Search & Action Bar */}
+        <div className="flex gap-2 mb-2.5">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari nama atau barcode produk..."
+              value={search}
+              onChange={e => onSearchChange(e.target.value)}
+              className="pl-9 h-11 text-sm bg-card rounded-xl border-border/60 shadow-sm"
+            />
+          </div>
           <Button
-            key={cat.id}
+            variant="outline"
+            size="icon"
+            onClick={onOpenScanner}
+            className="h-11 w-11 shrink-0 rounded-xl bg-card border-border/60 shadow-sm hover:bg-primary/5 hover:border-primary"
+            title="Scan Barcode Kamera"
+          >
+            <ScanBarcode className="w-5 h-5 text-primary" />
+          </Button>
+        </div>
+
+        {/* Category Filter Chips */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <Button
             size="sm"
-            variant={filterCategory === cat.id!.toString() ? 'default' : 'secondary'}
-            onClick={() => onFilterCategoryChange(cat.id!.toString())}
+            variant={filterCategory === 'all' ? 'default' : 'secondary'}
+            onClick={() => onFilterCategoryChange('all')}
             className="rounded-full text-xs h-8 px-3.5 shrink-0"
           >
-            {cat.name}
+            Semua ({products.length})
           </Button>
-        ))}
+          {categories.map(cat => (
+            <Button
+              key={cat.id}
+              size="sm"
+              variant={filterCategory === cat.id!.toString() ? 'default' : 'secondary'}
+              onClick={() => onFilterCategoryChange(cat.id!.toString())}
+              className="rounded-full text-xs h-8 px-3.5 shrink-0"
+            >
+              {cat.name}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Product Grid */}

@@ -188,124 +188,128 @@ export default function TransactionHistory() {
 
   return (
     <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4.5rem)] flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)} aria-label="Kembali">
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <h1 className="text-xl font-bold flex items-center gap-2 flex-1">
-          <ReceiptIcon className="w-5 h-5 text-primary" />
-          Riwayat Transaksi
-        </h1>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 text-xs gap-1.5 shrink-0"
-          onClick={handleExport}
-          disabled={exporting || filtered.length === 0}
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span className="hidden xs:inline">{exporting ? '...' : 'Export'}</span>
-        </Button>
-      </div>
-
-      {/* Search */}
-      <div className="relative mb-3">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Cari no. struk atau nama produk..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="pl-9 h-10"
-        />
-      </div>
-
-      {/* Date Filter */}
-      <div className="flex items-center gap-2 mb-4">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className={cn("h-9 text-xs gap-1.5 flex-1", dateFrom && "border-primary text-primary")}>
-              <CalendarIcon className="w-3.5 h-3.5" />
-              {dateFrom ? format(dateFrom, 'dd MMM yyyy', { locale: localeId }) : 'Dari tanggal'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <CalendarPicker
-              mode="single"
-              selected={dateFrom}
-              onSelect={setDateFrom}
-              initialFocus
-              className={cn("p-3 pointer-events-auto")}
-            />
-          </PopoverContent>
-        </Popover>
-
-        <span className="text-xs text-muted-foreground">—</span>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className={cn("h-9 text-xs gap-1.5 flex-1", dateTo && "border-primary text-primary")}>
-              <CalendarIcon className="w-3.5 h-3.5" />
-              {dateTo ? format(dateTo, 'dd MMM yyyy', { locale: localeId }) : 'Sampai tanggal'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
-            <CalendarPicker
-              mode="single"
-              selected={dateTo}
-              onSelect={setDateTo}
-              initialFocus
-              className={cn("p-3 pointer-events-auto")}
-            />
-          </PopoverContent>
-        </Popover>
-
-        {hasDateFilter && (
-          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={clearDateFilter} aria-label="Hapus filter tanggal">
-            <X className="w-4 h-4" />
+      {/* Sticky Header & Filter Bar */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pb-2 -mx-1 px-1 shrink-0 space-y-3">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => navigate(-1)} aria-label="Kembali">
+            <ArrowLeft className="w-4 h-4" />
           </Button>
-        )}
-      </div>
-
-      {/* Status filter tabs */}
-      <div className="flex gap-1.5 mb-4">
-        {([
-          { value: 'all', label: 'Semua' },
-          { value: 'open', label: 'Open Bill' },
-          { value: 'completed', label: 'Lunas' },
-        ] as const).map(tab => (
-          <button
-            key={tab.value}
-            onClick={() => setFilterStatus(tab.value)}
-            className={cn(
-              'px-3 py-1.5 rounded-full text-xs font-semibold transition-colors',
-              filterStatus === tab.value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-            )}
+          <h1 className="text-xl font-bold flex items-center gap-2 flex-1">
+            <ReceiptIcon className="w-5 h-5 text-primary" />
+            Riwayat Transaksi
+          </h1>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 text-xs gap-1.5 shrink-0 rounded-xl"
+            onClick={handleExport}
+            disabled={exporting || filtered.length === 0}
           >
-            {tab.label}
-          </button>
-        ))}
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline">{exporting ? '...' : 'Export'}</span>
+          </Button>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari no. struk atau nama produk..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9 h-10 rounded-xl bg-card border-border/60 shadow-sm"
+          />
+        </div>
+
+        {/* Date Filter */}
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("h-9 text-xs gap-1.5 flex-1 rounded-xl bg-card border-border/60", dateFrom && "border-primary text-primary")}>
+                <CalendarIcon className="w-3.5 h-3.5" />
+                {dateFrom ? format(dateFrom, 'dd MMM yyyy', { locale: localeId }) : 'Dari tanggal'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarPicker
+                mode="single"
+                selected={dateFrom}
+                onSelect={setDateFrom}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <span className="text-xs text-muted-foreground">—</span>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("h-9 text-xs gap-1.5 flex-1 rounded-xl bg-card border-border/60", dateTo && "border-primary text-primary")}>
+                <CalendarIcon className="w-3.5 h-3.5" />
+                {dateTo ? format(dateTo, 'dd MMM yyyy', { locale: localeId }) : 'Sampai tanggal'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <CalendarPicker
+                mode="single"
+                selected={dateTo}
+                onSelect={setDateTo}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+
+          {hasDateFilter && (
+            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-xl" onClick={clearDateFilter} aria-label="Hapus filter tanggal">
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+
+        {/* Status filter tabs */}
+        <div className="flex gap-1.5">
+          {([
+            { value: 'all', label: 'Semua' },
+            { value: 'open', label: 'Open Bill' },
+            { value: 'completed', label: 'Lunas' },
+          ] as const).map(tab => (
+            <button
+              key={tab.value}
+              onClick={() => setFilterStatus(tab.value)}
+              className={cn(
+                'px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors',
+                filterStatus === tab.value ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/70 text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Summary */}
-      {filtered.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-3 text-center">
-              <p className="text-xs text-muted-foreground">Total Transaksi</p>
-              <p className="text-lg font-bold text-primary">{filteredCompleted.length}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-3 text-center">
-              <p className="text-xs text-muted-foreground">Total Penjualan</p>
-              <p className="text-lg font-bold text-primary">{rp(filteredTotal)}</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* Scrollable Content (Summary & Transaction List) */}
+      <div className="flex-1 overflow-y-auto pt-2 pb-24">
+        {/* Summary */}
+        {filtered.length > 0 && (
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <Card className="border-0 shadow-sm bg-card">
+              <CardContent className="p-3 text-center">
+                <p className="text-xs text-muted-foreground">Total Transaksi</p>
+                <p className="text-lg font-bold text-primary">{filteredCompleted.length}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-sm bg-card">
+              <CardContent className="p-3 text-center">
+                <p className="text-xs text-muted-foreground">Total Penjualan</p>
+                <p className="text-lg font-bold text-primary">{rp(filteredTotal)}</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-      <div className="flex-1 overflow-y-auto pb-24">
         {/* Transaction list grouped by date */}
         {dateKeys.length === 0 ? (
           <div className="text-center py-16">

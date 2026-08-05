@@ -156,45 +156,48 @@ export default function Produk() {
   }
 
   return (
-    <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4.5rem)] flex flex-col gap-4 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold flex items-center gap-2">
-          <PackageIcon className="w-5 h-5 text-primary" />
-          Produk
-        </h1>
-        <Button size="sm" onClick={openAdd} className="h-9 gap-1.5">
-          <Plus className="w-4 h-4" />
-          Tambah
-        </Button>
-      </div>
-
-      {/* Search & Filter */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari produk..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 h-10"
-          />
+    <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4.5rem)] flex flex-col gap-3 overflow-hidden">
+      {/* Sticky Header & Search/Filter Section */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pb-2 -mx-1 px-1 space-y-3 shrink-0">
+        {/* Header Title & Add Button */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <PackageIcon className="w-5 h-5 text-primary" />
+            Produk
+          </h1>
+          <Button size="sm" onClick={openAdd} className="h-9 gap-1.5 shadow-sm rounded-xl">
+            <Plus className="w-4 h-4" />
+            Tambah
+          </Button>
         </div>
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[120px] h-10">
-            <SelectValue placeholder="Kategori" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua</SelectItem>
-            {categories?.map(c => (
-              <SelectItem key={c.id} value={c.id!.toString()}>{c.icon} {c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
-      {/* Product count */}
-      <p className="text-xs text-muted-foreground">{filtered.length} produk ditemukan</p>
+        {/* Search & Filter */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari produk..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9 h-10 rounded-xl bg-card border-border/60 shadow-sm"
+            />
+          </div>
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="w-[130px] h-10 rounded-xl bg-card border-border/60 shadow-sm">
+              <SelectValue placeholder="Kategori" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="all">Semua Kategori</SelectItem>
+              {categories?.map(c => (
+                <SelectItem key={c.id} value={c.id!.toString()}>{c.icon} {c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Product count */}
+        <p className="text-xs text-muted-foreground font-medium">{filtered.length} produk ditemukan</p>
+      </div>
 
       {/* Product List */}
       <div className="flex-1 overflow-y-auto pb-24">

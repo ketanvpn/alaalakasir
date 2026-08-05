@@ -65,31 +65,34 @@ export default function StockInPage() {
   };
 
   return (
-    <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4.5rem)] flex flex-col gap-4 overflow-hidden">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Link to="/settings">
-            <Button variant="ghost" size="icon" className="h-8 w-8"><ChevronLeft className="w-4 h-4" /></Button>
-          </Link>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <ArrowDownToLine className="w-5 h-5 text-success" />
-            Stok Masuk
-          </h1>
+    <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4.5rem)] flex flex-col gap-3 overflow-hidden">
+      {/* Sticky Header & Supplier Filter */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pb-2 -mx-1 px-1 space-y-3 shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Link to="/settings">
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><ChevronLeft className="w-4 h-4" /></Button>
+            </Link>
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <ArrowDownToLine className="w-5 h-5 text-success" />
+              Stok Masuk
+            </h1>
+          </div>
+          <Button size="sm" onClick={openAdd} className="h-9 gap-1.5 rounded-xl shadow-sm">
+            <Plus className="w-4 h-4" /> Tambah
+          </Button>
         </div>
-        <Button size="sm" onClick={openAdd} className="h-9 gap-1.5">
-          <Plus className="w-4 h-4" /> Tambah
-        </Button>
+
+        <Select value={filterSupplier} onValueChange={setFilterSupplier}>
+          <SelectTrigger className="h-10 rounded-xl bg-card border-border/60 shadow-sm"><SelectValue placeholder="Filter Supplier" /></SelectTrigger>
+          <SelectContent className="rounded-xl">
+            <SelectItem value="all">Semua Supplier</SelectItem>
+            {suppliers?.map(s => <SelectItem key={s.id} value={s.id!.toString()}>{s.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <p className="text-xs text-muted-foreground font-medium">{filtered.length} catatan riwayat</p>
       </div>
-
-      <Select value={filterSupplier} onValueChange={setFilterSupplier}>
-        <SelectTrigger className="h-10"><SelectValue placeholder="Filter Supplier" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Semua Supplier</SelectItem>
-          {suppliers?.map(s => <SelectItem key={s.id} value={s.id!.toString()}>{s.name}</SelectItem>)}
-        </SelectContent>
-      </Select>
-
-      <p className="text-xs text-muted-foreground">{filtered.length} catatan</p>
 
       <div className="flex-1 overflow-y-auto pb-24">
         {filtered.length === 0 ? (
