@@ -16,6 +16,8 @@ dist-ssr
 .vscode/
 .idea
 .kilocode
+.omo/
+nul
 .DS_Store
 *.suo
 *.ntvs*
