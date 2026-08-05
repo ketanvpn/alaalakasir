@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ShoppingCart, ClipboardList } from 'lucide-react';
+import { ShoppingCart, ClipboardList, ChevronRight, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { db, type Product, type Transaction, type TransactionItemRecord } from '@/lib/db';
@@ -434,24 +434,62 @@ export default function Cashier() {
         </div>
       </div>
 
-      {/* Mobile Floating Cart Summary Bar */}
+      {/* Mobile Floating Cart Capsule Pill */}
       {cart.length > 0 && (
-        <div className="lg:hidden fixed bottom-16 left-0 right-0 p-3 bg-background/95 backdrop-blur-md border-t border-border/80 z-[49] shadow-2xl animate-in slide-in-from-bottom duration-200">
-          <div className="max-w-lg md:max-w-6xl mx-auto">
-            <Button
+        <div className="lg:hidden fixed bottom-[4.5rem] left-0 right-0 z-[49] px-4 pointer-events-none animate-in slide-in-from-bottom-3 duration-250 ease-out">
+          <div className="max-w-lg mx-auto pointer-events-auto">
+            <div
               onClick={() => setCartOpen(true)}
-              className="w-full h-13 rounded-2xl text-sm font-bold flex items-center justify-between px-4 shadow-xl shadow-primary/25 active:scale-[0.99] transition-transform"
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setCartOpen(true);
+                }
+              }}
+              className="group cursor-pointer w-full h-15 rounded-2xl bg-foreground/95 dark:bg-card/95 text-background dark:text-foreground backdrop-blur-xl border border-white/10 dark:border-border/80 shadow-[0_12px_36px_rgba(0,0,0,0.28)] flex items-center justify-between p-2 pl-3.5 pr-2.5 transition-all active:scale-[0.985] hover:shadow-2xl"
             >
-              <div className="flex items-center gap-2.5">
-                <span className="w-7 h-7 rounded-xl bg-primary-foreground text-primary flex items-center justify-center text-xs font-extrabold shadow-sm">
-                  {totalCartQty}
-                </span>
-                <span className="text-sm font-bold">Lihat Keranjang</span>
+              {/* Left: Cart Icon with Badge & Total Info */}
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md shadow-primary/30 shrink-0">
+                  <ShoppingCart className="w-5 h-5" />
+                  <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-white dark:bg-zinc-900 text-primary border-2 border-primary text-[11px] font-black flex items-center justify-center shadow-sm">
+                    {totalCartQty}
+                  </span>
+                </div>
+
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[11px] font-semibold opacity-75 leading-tight truncate">
+                    {totalCartQty} Pesanan • Total
+                  </span>
+                  <MoneyText
+                    value={total}
+                    className="text-base font-extrabold tracking-tight text-white dark:text-white leading-tight"
+                  />
+                </div>
               </div>
-              <div className="text-right">
-                <MoneyText value={total} className="text-base font-extrabold text-primary-foreground tracking-tight" />
+
+              {/* Right: Action Pill Button */}
+              <div className="flex items-center gap-1.5 pl-2">
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation();
+                    setPaymentAmount(total.toString());
+                    setCheckoutOpen(true);
+                  }}
+                  className="h-10 px-4 rounded-xl bg-primary text-primary-foreground font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-primary/30 active:scale-95 transition-transform"
+                >
+                  <span>Bayar</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+
+                <div className="w-8 h-10 rounded-xl bg-white/10 dark:bg-white/5 flex items-center justify-center text-white/80 dark:text-white/80 group-hover:text-white group-hover:bg-white/20 transition-colors">
+                  <ChevronRight className="w-4 h-4" />
+                </div>
               </div>
-            </Button>
+            </div>
           </div>
         </div>
       )}
