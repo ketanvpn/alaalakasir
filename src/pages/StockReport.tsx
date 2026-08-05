@@ -154,170 +154,176 @@ export default function StockReport() {
   };
 
   return (
-    <div className="px-4 pt-6 pb-20 space-y-5">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold flex items-center gap-2">
-          <Warehouse className="w-5 h-5 text-primary" />
-          Laporan Stok
-        </h1>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 text-xs gap-1.5"
-          onClick={handleExport}
-          disabled={exporting}
-        >
-          <Download className="w-3.5 h-3.5" />
-          {exporting ? 'Mengekspor...' : 'Export'}
-        </Button>
+    <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4.5rem)] flex flex-col gap-3 overflow-hidden">
+      {/* Sticky Header & Period Filter */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pb-2 -mx-1 px-1 space-y-3 shrink-0">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <Warehouse className="w-5 h-5 text-primary" />
+            Laporan Stok
+          </h1>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 text-xs gap-1.5 rounded-xl shadow-sm"
+            onClick={handleExport}
+            disabled={exporting}
+          >
+            <Download className="w-3.5 h-3.5" />
+            {exporting ? 'Mengekspor...' : 'Export'}
+          </Button>
+        </div>
+
+        <PeriodFilter period={period} />
+
+        <p className="text-xs text-muted-foreground font-medium">
+          Menampilkan data: <span className="font-semibold text-foreground">{period.rangeLabel}</span>
+        </p>
       </div>
 
-      <PeriodFilter period={period} />
+      {/* Scrollable Inventory Analytics */}
+      <div className="flex-1 overflow-y-auto pt-1 pb-24 space-y-5">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-3 gap-2">
+          <Card className="border-0 shadow-sm bg-card">
+            <CardContent className="p-3 text-center">
+              <ArrowDownToLine className="w-4 h-4 mx-auto text-success mb-1" />
+              <p className="text-lg font-bold">{totalStockIn}</p>
+              <p className="text-[10px] text-muted-foreground">Masuk</p>
+            </CardContent>
+          </Card>
+          <Card className="border-0 shadow-sm bg-card">
+            <CardContent className="p-3 text-center">
+              <ArrowUpFromLine className="w-4 h-4 mx-auto text-destructive mb-1" />
+              <p className="text-lg font-bold">{totalStockOut}</p>
+              <p className="text-[10px] text-muted-foreground">Keluar</p>
+            </CardContent>
+          </Card>
+          <Card className="border-0 shadow-sm bg-card">
+            <CardContent className="p-3 text-center">
+              <Package className="w-4 h-4 mx-auto text-primary mb-1" />
+              <p className="text-lg font-bold">{currentStock}</p>
+              <p className="text-[10px] text-muted-foreground">Tersedia</p>
+            </CardContent>
+          </Card>
+        </div>
 
-      <p className="text-xs text-muted-foreground -mt-2">
-        Menampilkan data: <span className="font-medium text-foreground">{period.rangeLabel}</span>
-      </p>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-2">
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-3 text-center">
-            <ArrowDownToLine className="w-4 h-4 mx-auto text-success mb-1" />
-            <p className="text-lg font-bold">{totalStockIn}</p>
-            <p className="text-[10px] text-muted-foreground">Masuk</p>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-3 text-center">
-            <ArrowUpFromLine className="w-4 h-4 mx-auto text-destructive mb-1" />
-            <p className="text-lg font-bold">{totalStockOut}</p>
-            <p className="text-[10px] text-muted-foreground">Keluar</p>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-3 text-center">
-            <Package className="w-4 h-4 mx-auto text-primary mb-1" />
-            <p className="text-lg font-bold">{currentStock}</p>
-            <p className="text-[10px] text-muted-foreground">Tersedia</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Stock In Value */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-1.5">
-            <TrendingUp className="w-4 h-4 text-success" />
-            Nilai Stok Masuk
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">Total Pembelian</span>
-            <span className="text-lg font-bold text-success">{rp(totalStockInValue)}</span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Rata-rata: {totalStockIn > 0 ? rp(totalStockInValue / totalStockIn) : rp(0)} per unit
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Stock Movement Chart */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-1.5">
-            <BarChart3 className="w-4 h-4" />
-            Pergerakan Stok
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pb-4">
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={chartData}>
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                interval={spanDays > 14 ? Math.floor(spanDays / 7) : 0}
-              />
-              <YAxis hide />
-              <Tooltip 
-                formatter={(v: number, name: string) => [v, name === 'stockIn' ? 'Masuk' : 'Keluar']} 
-                contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                labelStyle={{ fontSize: 10 }}
-              />
-              <Bar dataKey="stockIn" fill="hsl(142, 71%, 45%)" radius={[2, 2, 0, 0]} name="Masuk" />
-              <Bar dataKey="stockOut" fill="hsl(0, 84%, 60%)" radius={[2, 2, 0, 0]} name="Keluar" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Stock Out by Reason */}
-      {Object.keys(stockOutByReason).length > 0 && (
-        <Card className="border-0 shadow-sm">
+        {/* Stock In Value */}
+        <Card className="border-0 shadow-sm bg-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-1.5">
-              <ArrowUpFromLine className="w-4 h-4 text-destructive" />
-              Alasan Stock Keluar
+              <TrendingUp className="w-4 h-4 text-success" />
+              Nilai Stok Masuk
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {Object.entries(stockOutByReason).map(([reason, qty]) => (
-              <div key={reason} className="flex items-center justify-between">
-                <span className="text-sm">{reasonLabels[reason] || reason}</span>
-                <span className="font-semibold text-destructive">{qty} unit</span>
-              </div>
-            ))}
+          <CardContent>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Total Pembelian</span>
+              <span className="text-lg font-bold text-success">{rp(totalStockInValue)}</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Rata-rata: {totalStockIn > 0 ? rp(totalStockInValue / totalStockIn) : rp(0)} per unit
+            </p>
           </CardContent>
         </Card>
-      )}
 
-      {/* Low Stock Alert */}
-      {lowStockProducts.length > 0 && (
-        <Card className="border-0 shadow-sm border-warning/50">
+        {/* Stock Movement Chart */}
+        <Card className="border-0 shadow-sm bg-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5 text-warning">
-              <AlertTriangle className="w-4 h-4" />
-              Stok Menipis ({lowStockProducts.length})
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <BarChart3 className="w-4 h-4" />
+              Pergerakan Stok
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {lowStockProducts.slice(0, 5).map(p => (
-              <div key={p.id} className="flex items-center justify-between">
-                <span className="text-sm truncate flex-1">{p.name}</span>
-                <span className="text-sm font-bold text-warning">{p.stock} {p.unit}</span>
-              </div>
-            ))}
-            {lowStockProducts.length > 5 && (
-              <p className="text-xs text-muted-foreground text-center">+{lowStockProducts.length - 5} produk lainnya</p>
-            )}
+          <CardContent className="pb-4">
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData}>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={spanDays > 14 ? Math.floor(spanDays / 7) : 0}
+                />
+                <YAxis hide />
+                <Tooltip 
+                  formatter={(v: number, name: string) => [v, name === 'stockIn' ? 'Masuk' : 'Keluar']} 
+                  contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                  labelStyle={{ fontSize: 10 }}
+                />
+                <Bar dataKey="stockIn" fill="hsl(142, 71%, 45%)" radius={[2, 2, 0, 0]} name="Masuk" />
+                <Bar dataKey="stockOut" fill="hsl(0, 84%, 60%)" radius={[2, 2, 0, 0]} name="Keluar" />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
-      )}
 
-      {/* Out of Stock */}
-      {outOfStockProducts.length > 0 && (
-        <Card className="border-0 shadow-sm border-destructive/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5 text-destructive">
-              <Package className="w-4 h-4" />
-              Stok Habis ({outOfStockProducts.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {outOfStockProducts.slice(0, 5).map(p => (
-              <div key={p.id} className="flex items-center justify-between">
-                <span className="text-sm truncate flex-1">{p.name}</span>
-                <span className="text-xs text-destructive">0 {p.unit}</span>
-              </div>
-            ))}
-            {outOfStockProducts.length > 5 && (
-              <p className="text-xs text-muted-foreground text-center">+{outOfStockProducts.length - 5} produk lainnya</p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+        {/* Stock Out by Reason */}
+        {Object.keys(stockOutByReason).length > 0 && (
+          <Card className="border-0 shadow-sm bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <ArrowUpFromLine className="w-4 h-4 text-destructive" />
+                Alasan Stock Keluar
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {Object.entries(stockOutByReason).map(([reason, qty]) => (
+                <div key={reason} className="flex items-center justify-between">
+                  <span className="text-sm">{reasonLabels[reason] || reason}</span>
+                  <span className="font-semibold text-destructive">{qty} unit</span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Low Stock Alert */}
+        {lowStockProducts.length > 0 && (
+          <Card className="border-0 shadow-sm border-warning/50 bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5 text-warning">
+                <AlertTriangle className="w-4 h-4" />
+                Stok Menipis ({lowStockProducts.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {lowStockProducts.slice(0, 5).map(p => (
+                <div key={p.id} className="flex items-center justify-between">
+                  <span className="text-sm truncate flex-1">{p.name}</span>
+                  <span className="text-sm font-bold text-warning">{p.stock} {p.unit}</span>
+                </div>
+              ))}
+              {lowStockProducts.length > 5 && (
+                <p className="text-xs text-muted-foreground text-center">+{lowStockProducts.length - 5} produk lainnya</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Out of Stock */}
+        {outOfStockProducts.length > 0 && (
+          <Card className="border-0 shadow-sm border-destructive/50 bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5 text-destructive">
+                <Package className="w-4 h-4" />
+                Stok Habis ({outOfStockProducts.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {outOfStockProducts.slice(0, 5).map(p => (
+                <div key={p.id} className="flex items-center justify-between">
+                  <span className="text-sm truncate flex-1">{p.name}</span>
+                  <span className="text-xs text-destructive">0 {p.unit}</span>
+                </div>
+              ))}
+              {outOfStockProducts.length > 5 && (
+                <p className="text-xs text-muted-foreground text-center">+{outOfStockProducts.length - 5} produk lainnya</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

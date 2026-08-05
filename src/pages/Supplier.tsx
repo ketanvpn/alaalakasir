@@ -59,62 +59,72 @@ export default function SupplierPage() {
   };
 
   return (
-    <div className="px-4 pt-6 pb-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold flex items-center gap-2">
-          <Truck className="w-5 h-5 text-primary" />
-          Supplier
-        </h1>
-        <Button size="sm" onClick={openAdd} className="h-9 gap-1.5">
-          <Plus className="w-4 h-4" /> Tambah
-        </Button>
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Cari supplier..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-10" />
-      </div>
-
-      <p className="text-xs text-muted-foreground">{filtered.length} supplier</p>
-
-      {filtered.length === 0 ? (
-        <div className="text-center py-12">
-          <Truck className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">Belum ada supplier</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={openAdd}>
-            <Plus className="w-4 h-4 mr-1" /> Tambah Supplier
+    <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4.5rem)] flex flex-col gap-3 overflow-hidden">
+      {/* Sticky Header & Search */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pb-2 -mx-1 px-1 space-y-3 shrink-0">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <Truck className="w-5 h-5 text-primary" />
+            Supplier
+          </h1>
+          <Button size="sm" onClick={openAdd} className="h-9 gap-1.5 rounded-xl shadow-sm">
+            <Plus className="w-4 h-4" /> Tambah
           </Button>
         </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map(s => (
-            <Card key={s.id} className="border-0 shadow-sm">
-              <CardContent className="p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold">{s.name}</h3>
-                    {s.phone && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Phone className="w-3 h-3" /> {s.phone}
-                      </p>
-                    )}
-                    {s.address && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3" /> {s.address}
-                      </p>
-                    )}
-                    {s.notes && <p className="text-xs text-muted-foreground mt-1 italic">{s.notes}</p>}
-                  </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(s)} aria-label={`Edit ${s.name}`}><Edit2 className="w-3.5 h-3.5" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(s.id!)} aria-label={`Hapus ${s.name}`}><Trash2 className="w-3.5 h-3.5" /></Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari supplier..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9 h-10 rounded-xl bg-card border-border/60 shadow-sm"
+          />
         </div>
-      )}
+
+        <p className="text-xs text-muted-foreground font-medium">{filtered.length} supplier terdaftar</p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto pb-24">
+        {filtered.length === 0 ? (
+          <div className="text-center py-12">
+            <Truck className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-sm text-muted-foreground">Belum ada supplier</p>
+            <Button variant="outline" size="sm" className="mt-3 rounded-xl" onClick={openAdd}>
+              <Plus className="w-4 h-4 mr-1" /> Tambah Supplier
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map(s => (
+              <Card key={s.id} className="border-0 shadow-sm">
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold">{s.name}</h3>
+                      {s.phone && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Phone className="w-3 h-3" /> {s.phone}
+                        </p>
+                      )}
+                      {s.address && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3" /> {s.address}
+                        </p>
+                      )}
+                      {s.notes && <p className="text-xs text-muted-foreground mt-1 italic">{s.notes}</p>}
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(s)} aria-label={`Edit ${s.name}`}><Edit2 className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(s.id!)} aria-label={`Hapus ${s.name}`}><Trash2 className="w-3.5 h-3.5" /></Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-[95vw] rounded-xl">

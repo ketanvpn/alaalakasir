@@ -140,159 +140,172 @@ export default function Laporan() {
   };
 
   return (
-    <div className="px-4 pt-6 pb-20 space-y-5">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-primary" />
-          Laporan
-        </h1>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 text-xs gap-1.5"
-          onClick={handleExport}
-          disabled={exporting || !transactions || transactions.length === 0}
-        >
-          <Download className="w-3.5 h-3.5" />
-          {exporting ? 'Mengekspor...' : 'Export'}
-        </Button>
+    <div className="px-4 pt-6 pb-4 h-[calc(var(--app-height,100vh)-4.5rem)] flex flex-col gap-3 overflow-hidden">
+      {/* Sticky Header & Period Filter */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pb-2 -mx-1 px-1 space-y-3 shrink-0">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-primary" />
+            Laporan
+          </h1>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 text-xs gap-1.5 rounded-xl shadow-sm"
+            onClick={handleExport}
+            disabled={exporting || !transactions || transactions.length === 0}
+          >
+            <Download className="w-3.5 h-3.5" />
+            {exporting ? 'Mengekspor...' : 'Export'}
+          </Button>
+        </div>
+
+        <PeriodFilter period={period} />
+
+        <p className="text-xs text-muted-foreground font-medium">
+          Menampilkan data: <span className="font-semibold text-foreground">{period.rangeLabel}</span>
+        </p>
       </div>
 
-      <PeriodFilter period={period} />
+      {/* Scrollable Analytics & Tables */}
+      <div className="flex-1 overflow-y-auto pt-1 pb-24 space-y-5">
+        {/* Summary */}
+        <div className="grid grid-cols-3 gap-2">
+          <Card className="border-0 shadow-sm bg-card">
+            <CardContent className="p-3 text-center">
+              <ShoppingCart className="w-4 h-4 mx-auto text-primary mb-1" />
+              <p className="text-lg font-bold">{txCount}</p>
+              <p className="text-xs text-muted-foreground">Transaksi</p>
+            </CardContent>
+          </Card>
+          <Card className="border-0 shadow-sm bg-card">
+            <CardContent className="p-3 text-center">
+              <TrendingUp className="w-4 h-4 mx-auto text-success mb-1" />
+              <p className="text-sm font-bold">{rp(totalSales)}</p>
+              <p className="text-xs text-muted-foreground">Penjualan</p>
+            </CardContent>
+          </Card>
+          <Card className="border-0 shadow-sm bg-card">
+            <CardContent className="p-3 text-center">
+              <TrendingUp className="w-4 h-4 mx-auto text-accent mb-1" />
+              <p className="text-sm font-bold">{rp(totalProfit)}</p>
+              <p className="text-xs text-muted-foreground">Laba Kotor</p>
+            </CardContent>
+          </Card>
+        </div>
 
-      <p className="text-xs text-muted-foreground -mt-2">
-        Menampilkan data: <span className="font-medium text-foreground">{period.rangeLabel}</span>
-      </p>
-
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-2">
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-3 text-center">
-            <ShoppingCart className="w-4 h-4 mx-auto text-primary mb-1" />
-            <p className="text-lg font-bold">{txCount}</p>
-            <p className="text-xs text-muted-foreground">Transaksi</p>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-3 text-center">
-            <TrendingUp className="w-4 h-4 mx-auto text-success mb-1" />
-            <p className="text-sm font-bold">{rp(totalSales)}</p>
-            <p className="text-xs text-muted-foreground">Penjualan</p>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-3 text-center">
-            <TrendingUp className="w-4 h-4 mx-auto text-accent mb-1" />
-            <p className="text-sm font-bold">{rp(totalProfit)}</p>
-            <p className="text-xs text-muted-foreground">Laba Kotor</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Profit & Loss */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-1.5">
-            <DollarSign className="w-4 h-4" />
-            Ringkasan Laba Rugi
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="flex justify-between items-center text-sm">
-            <div className="flex items-center gap-2">
-              <ArrowUp className="w-3.5 h-3.5 text-success" />
-              <span>Omzet Kotor</span>
-            </div>
-            <span className="font-semibold">{rp(totalRevenue)}</span>
-          </div>
-          {totalDiscount > 0 && (
-            <div className="flex justify-between items-center text-sm text-destructive">
+        {/* Profit & Loss */}
+        <Card className="border-0 shadow-sm bg-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <DollarSign className="w-4 h-4" />
+              Ringkasan Laba Rugi
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex justify-between items-center text-sm">
               <div className="flex items-center gap-2">
-                <Minus className="w-3.5 h-3.5" />
-                <span>Diskon</span>
+                <ArrowUp className="w-3.5 h-3.5 text-success" />
+                <span>Omzet Kotor</span>
               </div>
-              <span className="font-semibold">-{rp(totalDiscount)}</span>
+              <span className="font-semibold">{rp(totalRevenue)}</span>
             </div>
-          )}
-          <div className="flex justify-between items-center text-sm border-t pt-2">
-            <span className="font-medium">Penjualan Bersih</span>
-            <span className="font-bold">{rp(netSales)}</span>
-          </div>
-          <div className="flex justify-between items-center text-sm text-destructive">
-            <div className="flex items-center gap-2">
-              <ArrowDown className="w-3.5 h-3.5" />
-              <span>Modal Barang Terjual (HPP)</span>
-            </div>
-            <span className="font-semibold">-{rp(totalHpp)}</span>
-          </div>
-          <div className="flex justify-between items-center text-base border-t pt-2">
-            <span className="font-bold">Laba Kotor</span>
-            <span className={`font-bold ${grossProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-              {rp(grossProfit)}
-            </span>
-          </div>
-          <div className="flex justify-between items-center text-xs text-muted-foreground">
-            <span>Margin (laba/penjualan bersih)</span>
-            <span className="font-semibold">{marginPercent.toFixed(1)}%</span>
-          </div>
-          <div className="mt-2 rounded-lg bg-muted/60 p-2.5 text-xs text-muted-foreground leading-relaxed">
-            Rumus: <strong>Penjualan Bersih - Modal Barang (HPP) = Laba Kotor</strong>. Laba kotor belum termasuk biaya operasional seperti listrik, sewa, dan gaji.
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Chart */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Tren Penjualan</CardTitle>
-        </CardHeader>
-        <CardContent className="pb-4">
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={chartData}>
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                interval={spanDays > 14 ? Math.floor(spanDays / 7) : 0}
-              />
-              <YAxis hide />
-              <Tooltip formatter={(v: number) => [`Rp ${v.toLocaleString('id-ID')}`, 'Penjualan']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-              <Bar dataKey="sales" fill="hsl(25, 95%, 53%)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Top Products */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-1.5">
-            <Package className="w-4 h-4" />
-            Produk Terlaris
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {productSales.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-4 text-center">Belum ada data penjualan</p>
-          ) : (
-            <div className="space-y-2">
-              {productSales.map((p, i) => (
-                <div key={p.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
-                    <span className="text-sm">{p.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-bold">{rp(p.revenue)}</p>
-                    <p className="text-[10px] text-muted-foreground">{p.qty} terjual · laba {rp(p.profit)}</p>
-                  </div>
+            {totalDiscount > 0 && (
+              <div className="flex justify-between items-center text-sm text-destructive">
+                <div className="flex items-center gap-2">
+                  <Minus className="w-3.5 h-3.5" />
+                  <span>Diskon</span>
                 </div>
-              ))}
+                <span className="font-semibold">-{rp(totalDiscount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center text-sm border-t pt-2">
+              <span className="font-medium">Penjualan Bersih</span>
+              <span className="font-bold">{rp(netSales)}</span>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="flex justify-between items-center text-sm">
+              <div className="flex items-center gap-2">
+                <ArrowDown className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>HPP (Modal Pokok)</span>
+              </div>
+              <span className="font-semibold text-muted-foreground">{rp(totalHpp)}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm border-t pt-2">
+              <span className="font-bold">Laba Kotor</span>
+              <div className="text-right">
+                <span className={`font-bold ${grossProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {rp(grossProfit)}
+                </span>
+                {netSales > 0 && (
+                  <span className="text-xs text-muted-foreground ml-1.5">
+                    ({marginPercent.toFixed(1)}%)
+                  </span>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Chart */}
+        <Card className="border-0 shadow-sm bg-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Tren Penjualan Harian</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {chartData.every(d => d.sales === 0) ? (
+              <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
+                Belum ada transaksi di rentang ini
+              </div>
+            ) : (
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v: number) => [rp(v), 'Penjualan']} />
+                    <Bar dataKey="sales" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top Products */}
+        <Card className="border-0 shadow-sm bg-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <Package className="w-4 h-4" />
+              5 Produk Terlaris
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {productSales.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">Belum ada data penjualan produk</p>
+            ) : (
+              <div className="space-y-3">
+                {productSales.map((p, i) => (
+                  <div key={p.name} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">{p.qty} terjual</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 ml-2">
+                      <p className="font-semibold">{rp(p.revenue)}</p>
+                      <p className="text-xs text-success font-medium">+{rp(p.profit)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
