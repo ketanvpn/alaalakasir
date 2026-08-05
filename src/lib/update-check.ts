@@ -1,3 +1,5 @@
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
+
 export const APP_REPOSITORY = 'ketanvpn/alaalakasir';
 export const CURRENT_APP_VERSION = __APP_VERSION__;
 export const GITHUB_RELEASES_URL = `https://github.com/${APP_REPOSITORY}/releases`;
@@ -18,7 +20,7 @@ interface GitHubRelease {
 }
 
 function selectApkAsset(assets: GitHubReleaseAsset[]): GitHubReleaseAsset | null {
-  const apkAssets = assets.filter(asset => asset.name.toLowerCase().endsWith('.apk'));
+  const apkAssets = (assets || []).filter(asset => asset.name && asset.name.toLowerCase().endsWith('.apk'));
   if (apkAssets.length === 0) return null;
 
   const preferredAsset = apkAssets.find(asset => {
@@ -63,57 +65,101 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 15000): Promise<Response> {
+async function fetchJsonWithFallback<T>(url: string, timeoutMs = 15000): Promise<{ status: number; data: T | null }> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const nativeRes = await CapacitorHttp.get({
+        url,
+        headers: {
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'AlaalaKasir-App',
+        },
+        connectTimeout: timeoutMs,
+        readTimeout: timeoutMs,
+      });
+
+      return {
+        status: nativeRes.status,
+        data: (nativeRes.data as T) || null,
+      };
+    } catch {
+      // Fallback to window.fetch
+    }
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+      },
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+
+    let data: T | null = null;
+    try {
+      data = (await res.json()) as T;
+    } catch {
+      data = null;
+    }
+
+    return {
+      status: res.status,
+      data,
+    };
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
 export async function checkForAppUpdate(): Promise<AppUpdateInfo> {
-  const headers = { Accept: 'application/vnd.github+json' };
-  const latestReleaseResponse = await fetchWithTimeout(`https://api.github.com/repos/${APP_REPOSITORY}/releases/latest`, {
-    headers,
-    cache: 'no-store',
-  });
+  try {
+    const latestRelease = await fetchJsonWithFallback<GitHubRelease>(
+      `https://api.github.com/repos/${APP_REPOSITORY}/releases/latest`
+    );
 
-  if (latestReleaseResponse.ok) {
-    const release = (await latestReleaseResponse.json()) as GitHubRelease;
-    const apkAsset = selectApkAsset(release.assets);
+    if (latestRelease.status === 200 && latestRelease.data && latestRelease.data.tag_name) {
+      const release = latestRelease.data;
+      const apkAsset = selectApkAsset(release.assets);
 
-    return {
-      currentVersion: CURRENT_APP_VERSION,
-      latestVersion: release.tag_name,
-      updateAvailable: compareVersions(CURRENT_APP_VERSION, release.tag_name) < 0,
-      releaseUrl: release.html_url,
-      apkUrl: apkAsset?.browser_download_url ?? null,
-    };
-  }
-
-  const response = await fetchWithTimeout(`https://api.github.com/repos/${APP_REPOSITORY}/tags`, {
-    headers,
-    cache: 'no-store',
-  });
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error('Repository GitHub tidak bisa diakses publik');
+      return {
+        currentVersion: CURRENT_APP_VERSION,
+        latestVersion: release.tag_name,
+        updateAvailable: compareVersions(CURRENT_APP_VERSION, release.tag_name) < 0,
+        releaseUrl: release.html_url || `${GITHUB_RELEASES_URL}/tag/${release.tag_name}`,
+        apkUrl: apkAsset?.browser_download_url ?? null,
+      };
     }
-    throw new Error(`Gagal mengecek versi terbaru (${response.status})`);
+
+    const tagsRes = await fetchJsonWithFallback<GitHubTag[]>(
+      `https://api.github.com/repos/${APP_REPOSITORY}/tags`
+    );
+
+    if (tagsRes.status === 200 && Array.isArray(tagsRes.data)) {
+      const tags = tagsRes.data;
+      const latestTag = tags.find(tag => /^v?\d+\.\d+\.\d+$/.test(tag.name));
+      const latestVersion = latestTag?.name ?? null;
+
+      return {
+        currentVersion: CURRENT_APP_VERSION,
+        latestVersion,
+        updateAvailable: latestVersion ? compareVersions(CURRENT_APP_VERSION, latestVersion) < 0 : false,
+        releaseUrl: latestVersion ? `${GITHUB_RELEASES_URL}/tag/${latestVersion}` : GITHUB_RELEASES_URL,
+        apkUrl: null,
+      };
+    }
+
+    if (latestRelease.status === 403 || tagsRes.status === 403) {
+      throw new Error('Batas akses GitHub API sementara tercapai. Silakan coba lagi beberapa saat lagi.');
+    }
+
+    throw new Error(`Gagal menghubungi server update (Status: ${latestRelease.status || tagsRes.status || 'Offline'})`);
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Koneksi timeout saat mengecek update. Periksa koneksi internet Anda.');
+    }
+    throw error;
   }
-
-  const tags = (await response.json()) as GitHubTag[];
-  const latestTag = tags.find(tag => /^v?\d+\.\d+\.\d+$/.test(tag.name));
-  const latestVersion = latestTag?.name ?? null;
-
-  return {
-    currentVersion: CURRENT_APP_VERSION,
-    latestVersion,
-    updateAvailable: latestVersion ? compareVersions(CURRENT_APP_VERSION, latestVersion) < 0 : false,
-    releaseUrl: latestVersion ? `${GITHUB_RELEASES_URL}/tag/${latestVersion}` : GITHUB_RELEASES_URL,
-    apkUrl: null,
-  };
 }

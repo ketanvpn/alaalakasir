@@ -63,39 +63,31 @@ export function AboutAppCard() {
       setDownloadingUpdate(true);
       setUpdateProgress(0);
 
-      const response = await fetch(updateInfo.apkUrl);
-      if (!response.ok) throw new Error(`Download gagal (${response.status})`);
+      const downloadResult = await Filesystem.downloadFile({
+        url: updateInfo.apkUrl,
+        path: UPDATE_APK_PATH,
+        directory: Directory.Documents,
+        recursive: true,
+        progress: true,
+      });
 
-      const blob = await response.blob();
-      const reader = new FileReader();
+      if (downloadResult.path) {
+        const fileUri = await Filesystem.getUri({
+          directory: Directory.Documents,
+          path: UPDATE_APK_PATH,
+        });
 
-      reader.onloadend = async () => {
-        try {
-          const base64data = (reader.result as string).split(',')[1];
-          const fileName = `${UPDATE_APK_PATH}`;
-
-          const savedFile = await Filesystem.writeFile({
-            path: fileName,
-            data: base64data,
-            directory: Directory.Documents,
-            recursive: true,
-          });
-
-          setDownloadedApkUri(savedFile.uri);
-          setDownloadedApkName(fileName);
-          setUpdateInstallDialog(true);
-          toast.success('Update berhasil diunduh!');
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : 'Gagal menyimpan file update');
-        } finally {
-          setDownloadingUpdate(false);
-        }
-      };
-
-      reader.readAsDataURL(blob);
+        setDownloadedApkUri(fileUri.uri);
+        setDownloadedApkName(UPDATE_APK_PATH);
+        setUpdateInstallDialog(true);
+        toast.success('Update berhasil diunduh!');
+      } else {
+        throw new Error('Gagal mengunduh file update');
+      }
     } catch (error) {
-      setDownloadingUpdate(false);
       toast.error(error instanceof Error ? error.message : 'Gagal mengunduh update');
+    } finally {
+      setDownloadingUpdate(false);
     }
   };
 
