@@ -436,8 +436,8 @@ export default function Cashier() {
 
       {/* Mobile Floating Cart Summary Bar */}
       {cart.length > 0 && (
-        <div className="lg:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] left-0 right-0 p-3 bg-background/95 backdrop-blur-md border-t border-border/80 z-40 shadow-2xl animate-in slide-in-from-bottom duration-200">
-          <div className="max-w-lg mx-auto">
+        <div className="lg:hidden fixed bottom-16 left-0 right-0 p-3 bg-background/95 backdrop-blur-md border-t border-border/80 z-[49] shadow-2xl animate-in slide-in-from-bottom duration-200">
+          <div className="max-w-lg md:max-w-6xl mx-auto">
             <Button
               onClick={() => setCartOpen(true)}
               className="w-full h-13 rounded-2xl text-sm font-bold flex items-center justify-between px-4 shadow-xl shadow-primary/25 active:scale-[0.99] transition-transform"

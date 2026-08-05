@@ -26,9 +26,9 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-background max-w-lg md:max-w-6xl mx-auto relative">
+    <div className="min-h-screen bg-background max-w-lg md:max-w-6xl mx-auto">
       <main className="pb-20">
-        <div key={location.pathname} className="route-transition">
+        <div key={location.pathname}>
           <Outlet />
         </div>
       </main>
