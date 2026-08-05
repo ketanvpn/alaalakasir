@@ -436,7 +436,7 @@ export default function Cashier() {
 
       {/* Mobile Floating Cart Capsule Pill */}
       {cart.length > 0 && (
-        <div className="lg:hidden fixed bottom-[4.5rem] left-0 right-0 z-[49] px-4 pointer-events-none animate-in slide-in-from-bottom-3 duration-250 ease-out">
+        <div className="lg:hidden fixed bottom-20 left-0 right-0 z-[49] px-3.5 pointer-events-none animate-in slide-in-from-bottom-3 duration-250 ease-out">
           <div className="max-w-lg mx-auto pointer-events-auto">
             <div
               onClick={() => setCartOpen(true)}
@@ -448,7 +448,7 @@ export default function Cashier() {
                   setCartOpen(true);
                 }
               }}
-              className="group cursor-pointer w-full h-15 rounded-2xl bg-foreground/95 dark:bg-card/95 text-background dark:text-foreground backdrop-blur-xl border border-white/10 dark:border-border/80 shadow-[0_12px_36px_rgba(0,0,0,0.28)] flex items-center justify-between p-2 pl-3.5 pr-2.5 transition-all active:scale-[0.985] hover:shadow-2xl"
+              className="group cursor-pointer w-full h-15 rounded-2xl bg-foreground/95 dark:bg-card/95 text-background dark:text-foreground backdrop-blur-xl border border-white/10 dark:border-border/80 shadow-[0_14px_40px_rgba(0,0,0,0.3)] flex items-center justify-between p-2 pl-3.5 pr-2.5 transition-all active:scale-[0.985] hover:shadow-2xl"
             >
               {/* Left: Cart Icon with Badge & Total Info */}
               <div className="flex items-center gap-3 min-w-0">
@@ -461,7 +461,7 @@ export default function Cashier() {
 
                 <div className="flex flex-col min-w-0">
                   <span className="text-[11px] font-semibold opacity-75 leading-tight truncate">
-                    {totalCartQty} Pesanan • Total
+                    {totalCartQty} Produk • Total
                   </span>
                   <MoneyText
                     value={total}
@@ -470,18 +470,17 @@ export default function Cashier() {
                 </div>
               </div>
 
-              {/* Right: Action Pill Button */}
+              {/* Right: Cart Preview Action Button */}
               <div className="flex items-center gap-1.5 pl-2">
                 <button
                   type="button"
                   onClick={e => {
                     e.stopPropagation();
-                    setPaymentAmount(total.toString());
-                    setCheckoutOpen(true);
+                    setCartOpen(true);
                   }}
                   className="h-10 px-4 rounded-xl bg-primary text-primary-foreground font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-primary/30 active:scale-95 transition-transform"
                 >
-                  <span>Bayar</span>
+                  <span>Keranjang</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
 

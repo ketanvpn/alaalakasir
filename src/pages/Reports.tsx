@@ -34,7 +34,7 @@ export default function Laporan() {
     return db.transactionItems.where('transactionId').anyOf(txIds).toArray();
   }, [transactions]);
 
-  const allItems = txItems ?? [];
+  const allItems = useMemo(() => txItems ?? [], [txItems]);
 
   const totalSales = transactions?.reduce((s, t) => s + t.total, 0) ?? 0;
   const txCount = transactions?.length ?? 0;

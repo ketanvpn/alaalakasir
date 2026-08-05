@@ -91,7 +91,7 @@ export default function TransactionHistory() {
     // Search filter
     if (search) {
       const q = search.toLowerCase();
-      const items = getTxItems(tx.id);
+      const items = tx.id ? (txItemsMap?.[tx.id] ?? []) : [];
       return (
         tx.receiptNumber.toLowerCase().includes(q) ||
         items.some(it => it.productName.toLowerCase().includes(q))

@@ -90,7 +90,8 @@ export function AboutAppCard() {
             toast.info('Aktifkan izin install dari aplikasi ini, lalu kembali dan tekan Install Update lagi.');
             await ApkInstaller.openInstallPermissionSettings();
           }
-        } catch {
+        } catch (e) {
+          console.warn('Auto-install prompt deferred to user manual action:', e);
         }
       } else {
         throw new Error('Gagal mengunduh file update');
