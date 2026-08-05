@@ -48,9 +48,12 @@ export default function Cashier() {
   const [tempDiscountValue, setTempDiscountValue] = useState('');
   const [paymentMethodId, setPaymentMethodId] = useState<string>('');
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [customerId, setCustomerId] = useState<number | null>(null);
   const [customerName, setCustomerName] = useState('');
   const [tableNumber, setTableNumber] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [isKasbon, setIsKasbon] = useState(false);
+  const [dueDate, setDueDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Completed transaction cache for Receipt modal
@@ -61,6 +64,7 @@ export default function Cashier() {
   const products = useLiveQuery(() => db.products.where('isDeleted').equals(0).toArray());
   const categories = useLiveQuery(() => db.categories.where('isDeleted').equals(0).toArray());
   const paymentMethods = useLiveQuery(() => db.paymentMethods.toArray());
+  const customers = useLiveQuery(() => db.customers.where('isDeleted').equals(0).toArray());
   const storeSettings = useLiveQuery(() => db.storeSettings.toCollection().first());
   const openBills = useLiveQuery(() => db.transactions.where('status').equals('open').reverse().sortBy('date'));
 
@@ -85,9 +89,12 @@ export default function Cashier() {
     setTxDiscountValue('');
     setPaymentMethodId('');
     setPaymentAmount('');
+    setCustomerId(null);
     setCustomerName('');
     setTableNumber('');
     setRemarks('');
+    setIsKasbon(false);
+    setDueDate('');
     setIsSubmitting(false);
   };
 
@@ -280,9 +287,33 @@ export default function Cashier() {
   };
 
   const handleCheckout = async () => {
-    if (!paymentMethodId || paidAmount < total || isSubmitting) return;
+    const isKasbonValid = isKasbon && (Boolean(customerId) || Boolean(customerName.trim()));
+    const isRegularValid = !isKasbon && Boolean(paymentMethodId) && paidAmount >= total;
+    if ((!isKasbonValid && !isRegularValid) || isSubmitting) return;
+
     setIsSubmitting(true);
     try {
+      let resolvedCustomerId = customerId;
+      if (!resolvedCustomerId && customerName.trim()) {
+        const existing = customers?.find(c => c.name.toLowerCase() === customerName.trim().toLowerCase());
+        if (existing?.id) {
+          resolvedCustomerId = existing.id;
+        } else if (isKasbon) {
+          const newCust = await db.customers.add({
+            name: customerName.trim(),
+            phone: '',
+            totalDebt: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            isDeleted: 0,
+            deletedAt: null,
+          });
+          resolvedCustomerId = newCust as number;
+        }
+      }
+
+      const defaultPaymentMethodId = paymentMethodId ? Number(paymentMethodId) : (paymentMethods?.[0]?.id || 1);
+
       const result = await checkoutSale({
         editingTxId,
         items: buildSaleCartItems(),
@@ -291,13 +322,16 @@ export default function Cashier() {
         discountValue: Number(txDiscountValue) || 0,
         discountAmount: txDiscountAmount,
         total,
-        paymentMethodId: Number(paymentMethodId),
-        paymentAmount: paidAmount,
-        change: paidAmount >= total ? paidAmount - total : 0,
+        paymentMethodId: defaultPaymentMethodId,
+        paymentAmount: isKasbon ? 0 : paidAmount,
+        change: isKasbon ? 0 : (paidAmount >= total ? paidAmount - total : 0),
         profit: totalProfit,
+        customerId: resolvedCustomerId || undefined,
         customerName: customerName.trim() || undefined,
         tableNumber: tableNumber.trim() || undefined,
         remarks: remarks.trim() || undefined,
+        isKasbon,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
       });
 
       setLastTransaction(result.transaction);
@@ -306,7 +340,7 @@ export default function Cashier() {
       setCartOpen(false);
       setReceiptOpen(true);
       doFullReset();
-      toast.success('Transaksi penjualan berhasil diselesaikan!');
+      toast.success(isKasbon ? 'Transaksi kasbon berhasil dicatat!' : 'Transaksi penjualan berhasil diselesaikan!');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Transaksi gagal diproses');
     } finally {
@@ -554,12 +588,19 @@ export default function Cashier() {
         onPaymentMethodIdChange={setPaymentMethodId}
         paymentAmount={paymentAmount}
         onPaymentAmountChange={setPaymentAmount}
+        customerId={customerId}
+        onCustomerIdChange={setCustomerId}
         customerName={customerName}
         onCustomerNameChange={setCustomerName}
         tableNumber={tableNumber}
         onTableNumberChange={setTableNumber}
         remarks={remarks}
         onRemarksChange={setRemarks}
+        isKasbon={isKasbon}
+        onIsKasbonChange={setIsKasbon}
+        dueDate={dueDate}
+        onDueDateChange={setDueDate}
+        customers={customers || []}
         onConfirmCheckout={handleCheckout}
         isSubmitting={isSubmitting}
       />

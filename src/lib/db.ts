@@ -92,6 +92,7 @@ export interface Transaction {
   receiptNumber: string;
   status: 'open' | 'completed';
   orderNumber?: string;
+  customerId?: number;
   customerName?: string;
   tableNumber?: string;
   remarks?: string;
@@ -112,6 +113,43 @@ export interface TransactionItemRecord {
   discountAmount: number;
   subtotal: number;
   notes?: string;
+}
+
+export interface Customer {
+  id?: number;
+  name: string;
+  phone: string;
+  address?: string;
+  notes?: string;
+  totalDebt: number;
+  createdAt: Date;
+  updatedAt: Date;
+  isDeleted: number;
+  deletedAt: Date | null;
+}
+
+export interface CustomerDebt {
+  id?: number;
+  customerId: number;
+  transactionId?: number;
+  amount: number;
+  remainingAmount: number;
+  dueDate?: Date;
+  status: 'unpaid' | 'partial' | 'paid';
+  notes?: string;
+  date: Date;
+  createdAt: Date;
+}
+
+export interface DebtPayment {
+  id?: number;
+  debtId: number;
+  customerId: number;
+  amount: number;
+  paymentMethodId: number;
+  date: Date;
+  notes?: string;
+  createdAt: Date;
 }
 
 export interface StoreSettings {
@@ -142,6 +180,9 @@ const TABLE_NAMES = [
   'transactions',
   'transactionItems',
   'storeSettings',
+  'customers',
+  'customerDebts',
+  'debtPayments',
 ] as const;
 
 type SoftDeleteMigrationRecord = {
@@ -185,6 +226,9 @@ class PosDatabase extends Dexie {
   transactions!: Table<Transaction>;
   transactionItems!: Table<TransactionItemRecord>;
   storeSettings!: Table<StoreSettings>;
+  customers!: Table<Customer>;
+  customerDebts!: Table<CustomerDebt>;
+  debtPayments!: Table<DebtPayment>;
 
   constructor() {
     super(CURRENT_DB_NAME);
@@ -337,6 +381,22 @@ class PosDatabase extends Dexie {
       transactions:     '++id, date, &receiptNumber, paymentMethodId, status, orderNumber, [status+date]',
       transactionItems: '++id, transactionId, productId',
       storeSettings:    '++id',
+    });
+
+    this.version(6).stores({
+      categories:       '++id, name, isDeleted',
+      products:         '++id, name, &sku, categoryId, barcode, isDeleted',
+      suppliers:        '++id, name, isDeleted',
+      stockIns:         '++id, productId, supplierId, date',
+      stockOuts:        '++id, productId, date',
+      hppHistory:       '++id, productId, date',
+      paymentMethods:   '++id, name, category',
+      transactions:     '++id, date, &receiptNumber, paymentMethodId, status, orderNumber, customerId, [status+date]',
+      transactionItems: '++id, transactionId, productId',
+      storeSettings:    '++id',
+      customers:        '++id, name, phone, totalDebt, isDeleted',
+      customerDebts:    '++id, customerId, transactionId, status, date, dueDate',
+      debtPayments:     '++id, debtId, customerId, date',
     });
   }
 }

@@ -20,9 +20,12 @@ export interface SaleCartItem {
 }
 
 interface BillCustomerInfo {
+  customerId?: number;
   customerName?: string;
   tableNumber?: string;
   remarks?: string;
+  isKasbon?: boolean;
+  dueDate?: Date;
 }
 
 interface SaleTotals {
@@ -52,7 +55,7 @@ export interface SaleResult {
   items: TransactionItemRecord[];
 }
 
-const touchedTables = [db.transactions, db.transactionItems, db.products] as const;
+const touchedTables = [db.transactions, db.transactionItems, db.products, db.customers, db.customerDebts] as const;
 
 function buildItemRecords(transactionId: number, items: SaleCartItem[]): TransactionItemRecord[] {
   return items.map(item => ({
@@ -197,6 +200,7 @@ export async function checkoutSale(input: CheckoutInput): Promise<SaleResult> {
         paymentAmount: input.paymentAmount,
         change: input.change,
         profit: input.profit,
+        customerId: input.customerId,
         customerName: input.customerName,
         tableNumber: input.tableNumber,
         remarks: input.remarks,
@@ -206,6 +210,28 @@ export async function checkoutSale(input: CheckoutInput): Promise<SaleResult> {
       await db.transactionItems.where('transactionId').equals(input.editingTxId).delete();
       const itemRecords = buildItemRecords(input.editingTxId, input.items);
       await db.transactionItems.bulkAdd(itemRecords);
+
+      if (input.isKasbon && input.customerId) {
+        await db.customerDebts.add({
+          customerId: input.customerId,
+          transactionId: input.editingTxId,
+          amount: input.total,
+          remainingAmount: input.total,
+          dueDate: input.dueDate,
+          status: 'unpaid',
+          notes: `Transaksi ${input.editingTxId}`,
+          date: now,
+          createdAt: now,
+        });
+
+        const customer = await db.customers.get(input.customerId);
+        if (customer) {
+          await db.customers.update(input.customerId, {
+            totalDebt: (customer.totalDebt || 0) + input.total,
+            updatedAt: now,
+          });
+        }
+      }
 
       const transaction = await db.transactions.get(input.editingTxId);
       if (!transaction) throw new Error('Transaksi tidak ditemukan setelah checkout');
@@ -227,6 +253,7 @@ export async function checkoutSale(input: CheckoutInput): Promise<SaleResult> {
       date: now,
       receiptNumber: generateReceiptNumber(),
       status: 'completed',
+      customerId: input.customerId,
       customerName: input.customerName,
       tableNumber: input.tableNumber,
       remarks: input.remarks,
@@ -235,6 +262,28 @@ export async function checkoutSale(input: CheckoutInput): Promise<SaleResult> {
     const txId = await db.transactions.add(transaction);
     const itemRecords = buildItemRecords(txId as number, input.items);
     await db.transactionItems.bulkAdd(itemRecords);
+
+    if (input.isKasbon && input.customerId) {
+      await db.customerDebts.add({
+        customerId: input.customerId,
+        transactionId: txId as number,
+        amount: input.total,
+        remainingAmount: input.total,
+        dueDate: input.dueDate,
+        status: 'unpaid',
+        notes: `Transaksi Kasir`,
+        date: now,
+        createdAt: now,
+      });
+
+      const customer = await db.customers.get(input.customerId);
+      if (customer) {
+        await db.customers.update(input.customerId, {
+          totalDebt: (customer.totalDebt || 0) + input.total,
+          updatedAt: now,
+        });
+      }
+    }
 
     return { transaction: { ...transaction, id: txId as number }, items: itemRecords };
   });

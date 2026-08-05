@@ -19,6 +19,7 @@ const StockInPage = lazy(() => import("./pages/StockIn"));
 const StockOutPage = lazy(() => import("./pages/StockOut"));
 const TransactionHistory = lazy(() => import("./pages/TransactionHistory"));
 const StockReport = lazy(() => import("./pages/StockReport"));
+const CustomersPage = lazy(() => import("./pages/Customers"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function RouteFallback() {
@@ -76,6 +77,7 @@ const App = () => {
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/supplier" element={<SupplierPage />} />
+                <Route path="/customers" element={<CustomersPage />} />
                 <Route path="/stock-in" element={<StockInPage />} />
                 <Route path="/stock-out" element={<StockOutPage />} />
                 <Route path="/history" element={<TransactionHistory />} />

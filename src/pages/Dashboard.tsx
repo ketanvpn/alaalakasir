@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type TransactionItemRecord } from '@/lib/db';
 import { useEffect, useState } from 'react';
-import { TrendingUp, AlertTriangle, Receipt, ChevronRight, ClipboardList, ArrowDownToLine, ArrowUpFromLine, Truck, ShoppingCart, Package } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Receipt, ChevronRight, ClipboardList, ArrowDownToLine, ArrowUpFromLine, Truck, ShoppingCart, Package, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -106,9 +106,9 @@ export default function Dashboard() {
   const quickActions = [
     { to: '/cashier', icon: ShoppingCart, label: 'Kasir', color: 'bg-primary/10 text-primary' },
     { to: '/products', icon: Package, label: 'Produk', color: 'bg-accent/10 text-accent' },
+    { to: '/customers', icon: Users, label: 'Kasbon / Hutang', color: 'bg-amber-500/10 text-amber-600' },
     { to: '/stock-in', icon: ArrowDownToLine, label: 'Stok Masuk', color: 'bg-success/10 text-success' },
     { to: '/history', icon: Receipt, label: 'Riwayat', color: 'bg-secondary text-secondary-foreground' },
-    { to: '/stock-out', icon: ArrowUpFromLine, label: 'Stok Keluar', color: 'bg-destructive/10 text-destructive' },
     { to: '/supplier', icon: Truck, label: 'Supplier', color: 'bg-muted text-foreground' },
   ];
 

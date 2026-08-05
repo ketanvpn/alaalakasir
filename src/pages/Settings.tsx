@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import { Truck, Receipt, Palette, ChevronRight } from 'lucide-react';
+import { Truck, Receipt, Palette, ChevronRight, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import ThemeColorPicker from '@/components/ThemeColorPicker';
@@ -75,9 +75,26 @@ export default function Settings() {
       </Card>
 
       {/* 3. Quick Navigation & Receipt Settings */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Link to="/customers" className="block">
+          <Card className="border border-border/70 shadow-sm rounded-2xl hover:border-primary/50 hover:shadow-md transition-all cursor-pointer h-full">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">Pelanggan & Kasbon</p>
+                  <p className="text-[10px] text-muted-foreground">Catatan hutang & piutang</p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+
         <Link to="/supplier" className="block">
-          <Card className="border border-border/70 shadow-sm rounded-2xl hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
+          <Card className="border border-border/70 shadow-sm rounded-2xl hover:border-primary/50 hover:shadow-md transition-all cursor-pointer h-full">
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
